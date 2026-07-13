@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $image = null;
     if (!$errors) {
         try {
-            $image = handle_image_upload($_FILES['image'] ?? []);
+            $image = handle_listing_image();
         } catch (RuntimeException $ex) {
             $errors[] = $ex->getMessage();
         }
@@ -120,8 +120,9 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <div class="form-group">
-                <label for="image">Item Photo (JPG/PNG/GIF/WEBP, max 2 MB)</label>
-                <input type="file" id="image" name="image" accept="image/*">
+                <label for="image">Item Photo (JPEG/PNG, max 10 MB)</label>
+                <?php require __DIR__ . '/includes/crop_tool.php'; ?>
+                <small>After choosing a photo, the crop tool opens so you can frame it before publishing.</small>
             </div>
 
             <button type="submit" class="btn btn-primary">Publish Listing</button>

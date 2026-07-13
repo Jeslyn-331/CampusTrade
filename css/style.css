@@ -1558,6 +1558,143 @@ ul {
     height: 30px;
 }
 
+/* ---------- Discount / price drop ---------- */
+.discount-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #E74C3C;
+    color: #FFFFFF;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    transition: transform 0.15s;
+}
+
+.discount-badge:hover {
+    transform: scale(1.05);
+}
+
+.discount-badge.inline {
+    position: static;
+    display: inline-block;
+    margin-left: 0.3rem;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #999999;
+    font-weight: 400;
+    font-size: 0.9em;
+}
+
+.discounted-price {
+    color: #E74C3C;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.discounted-price.big {
+    font-size: 1em; /* .item-detail-price already sets the large size */
+}
+
+.discount-note {
+    margin-top: -0.4rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.85rem;
+}
+
+.discount-pct-preview {
+    color: #E74C3C;
+}
+
+.discount-pct-preview.invalid-pct {
+    color: var(--danger);
+}
+
+/* ---------- Wishlist SOLD overlay ---------- */
+.sold-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg);
+    background: rgba(198, 40, 40, 0.92);
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: 4px;
+    padding: 0.3rem 1.6rem;
+    border: 3px solid #fff;
+    border-radius: 6px;
+    pointer-events: none;
+}
+
+/* ---------- Image crop tool ---------- */
+.crop-tool {
+    margin-top: 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.8rem;
+    background: var(--bg);
+}
+
+.crop-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.crop-stage img {
+    max-width: 100%;
+    max-height: 420px;
+    display: block;
+    border-radius: 4px;
+}
+
+.crop-box {
+    position: absolute;
+    border: 2px dashed #fff;
+    outline: 1px solid rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+    cursor: move;
+    touch-action: none;
+}
+
+.crop-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    touch-action: none;
+}
+
+.crop-handle[data-corner="nw"] { top: -9px; left: -9px; cursor: nwse-resize; }
+.crop-handle[data-corner="ne"] { top: -9px; right: -9px; cursor: nesw-resize; }
+.crop-handle[data-corner="sw"] { bottom: -9px; left: -9px; cursor: nesw-resize; }
+.crop-handle[data-corner="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
+
+.crop-actions {
+    margin-top: 0.8rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.crop-preview-wrap {
+    margin-top: 0.8rem;
+}
+
+.crop-preview {
+    max-width: 260px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
 /* ---------- Order status badges ---------- */
 .order-pending { background: var(--warning); }
 .order-completed { background: var(--success); }

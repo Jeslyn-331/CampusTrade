@@ -14,13 +14,25 @@ $selected_conditions = array_values(array_intersect($selected_conditions, CONDIT
 $search    = trim($_GET['search'] ?? '');
 $min_price = ($_GET['min_price'] ?? '') !== '' ? max(0, (float) $_GET['min_price']) : null;
 $max_price = ($_GET['max_price'] ?? '') !== '' ? max(0, (float) $_GET['max_price']) : null;
+$on_sale   = ($_GET['on_sale'] ?? '') === '1';
+
+// "Find Similar Items" mode (from sold wishlist items): sort by price similarity
+$near = ($_GET['near'] ?? '') !== '' ? max(0.0, (float) $_GET['near']) : null;
 
 $sort_options = [
     'newest'     => ['label' => 'Newest First',       'sql' => 'l.created_at DESC'],
     'price_asc'  => ['label' => 'Price: Low to High', 'sql' => 'l.price ASC'],
     'price_desc' => ['label' => 'Price: High to Low', 'sql' => 'l.price DESC'],
+    'discount'   => ['label' => 'Biggest Discount',   'sql' => 'COALESCE((l.original_price - l.price) / l.original_price, 0) DESC, l.created_at DESC'],
 ];
 $sort = isset($sort_options[$_GET['sort'] ?? '']) ? $_GET['sort'] : 'newest';
+
+// Similarity ordering (closest price first) unless the user explicitly picked a sort.
+// $near is a sanitised float, so embedding it in the ORDER BY is safe.
+$order_sql = $sort_options[$sort]['sql'];
+if ($near !== null && !isset($_GET['sort'])) {
+    $order_sql = 'ABS(l.price - ' . $near . ') ASC';
+}
 
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
@@ -51,6 +63,9 @@ if ($max_price !== null) {
     $where[] = 'l.price <= ?';
     $params[] = $max_price; $types .= 'd';
 }
+if ($on_sale) {
+    $where[] = 'l.is_discounted = 1';
+}
 $where_sql = implode(' AND ', $where);
 
 // ---- Count matching rows for pagination ----
@@ -67,11 +82,11 @@ $page = min($page, $total_pages);
 $offset = ($page - 1) * ITEMS_PER_PAGE;
 
 // ---- Fetch the current page of listings ----
-$sql = "SELECT l.listing_id, l.title, l.price, l.item_condition, l.image, l.status, l.created_at, u.username, u.profile_image
+$sql = "SELECT l.listing_id, l.title, l.price, l.original_price, l.is_discounted, l.item_condition, l.image, l.status, l.created_at, u.username, u.profile_image
         FROM listings l
         JOIN users u ON l.user_id = u.user_id
         WHERE $where_sql
-        ORDER BY {$sort_options[$sort]['sql']}
+        ORDER BY $order_sql
         LIMIT ? OFFSET ?";
 $stmt = $conn->prepare($sql);
 $limit = ITEMS_PER_PAGE;
@@ -92,6 +107,12 @@ require_once __DIR__ . '/includes/header.php';
     <h1 class="page-title">Browse Listings</h1>
     <?php if ($search !== ''): ?>
         <p class="muted">Search results for &ldquo;<strong><?= e($search) ?></strong>&rdquo; — <?= $total_items ?> item(s) found.</p>
+    <?php endif; ?>
+    <?php if ($near !== null): ?>
+        <div class="alert alert-success">
+            Showing available items similar to your sold wishlist item — same category,
+            price within &plusmn;30% of <?= format_price($near) ?>, closest price first.
+        </div>
     <?php endif; ?>
 
     <div class="browse-layout">
@@ -127,6 +148,14 @@ require_once __DIR__ . '/includes/header.php';
                 </fieldset>
 
                 <fieldset>
+                    <legend>Deals</legend>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="on_sale" value="1" <?= $on_sale ? 'checked' : '' ?>>
+                        On Sale (discounted only)
+                    </label>
+                </fieldset>
+
+                <fieldset>
                     <legend>Price Range (RM)</legend>
                     <div class="price-inputs">
                         <input type="number" name="min_price" min="0" step="0.01" placeholder="Min"
@@ -156,7 +185,9 @@ require_once __DIR__ . '/includes/header.php';
                     <?php endforeach;
                     if ($search !== ''): ?><input type="hidden" name="search" value="<?= e($search) ?>"><?php endif;
                     if ($min_price !== null): ?><input type="hidden" name="min_price" value="<?= e((string) $min_price) ?>"><?php endif;
-                    if ($max_price !== null): ?><input type="hidden" name="max_price" value="<?= e((string) $max_price) ?>"><?php endif; ?>
+                    if ($max_price !== null): ?><input type="hidden" name="max_price" value="<?= e((string) $max_price) ?>"><?php endif;
+                    if ($on_sale): ?><input type="hidden" name="on_sale" value="1"><?php endif;
+                    if ($near !== null): ?><input type="hidden" name="near" value="<?= e((string) $near) ?>"><?php endif; ?>
                     <label for="sort">Sort by:</label>
                     <select name="sort" id="sort" onchange="this.form.submit()">
                         <?php foreach ($sort_options as $key => $opt): ?>
@@ -167,11 +198,25 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <?php if (!$listings): ?>
-                <div class="empty-state">
-                    <p><strong>No items match your search.</strong></p>
-                    <p>Try removing some filters or using different keywords.</p>
-                    <a href="browse.php" class="btn btn-primary">View All Listings</a>
-                </div>
+                <?php if ($near !== null): ?>
+                    <div class="empty-state">
+                        <p><strong>No similar items available right now. We'll keep looking!</strong></p>
+                        <p>In the meantime, you can browse everything in this category.</p>
+                        <?php if ($selected_categories): ?>
+                            <a href="browse.php?category=<?= urlencode($selected_categories[0]) ?>" class="btn btn-primary">
+                                Browse All <?= e($selected_categories[0]) ?>
+                            </a>
+                        <?php else: ?>
+                            <a href="browse.php" class="btn btn-primary">View All Listings</a>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <p><strong>No items match your search.</strong></p>
+                        <p>Try removing some filters or using different keywords.</p>
+                        <a href="browse.php" class="btn btn-primary">View All Listings</a>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <div class="card-grid">
                     <?php foreach ($listings as $item): ?>
@@ -182,11 +227,13 @@ require_once __DIR__ . '/includes/header.php';
                                 <span class="badge <?= condition_class($item['item_condition']) ?>"><?= e($item['item_condition']) ?></span>
                                 <?php if ($item['status'] === 'Reserved'): ?>
                                     <span class="badge status-reserved">Reserved</span>
+                                <?php elseif (has_discount($item)): ?>
+                                    <span class="discount-badge"><?= discount_pct($item) ?>% OFF</span>
                                 <?php endif; ?>
                             </div>
                             <div class="item-body">
                                 <h3 class="item-title"><?= e($item['title']) ?></h3>
-                                <p class="item-price"><?= format_price((float) $item['price']) ?></p>
+                                <p class="item-price"><?= price_html($item) ?></p>
                                 <p class="item-meta">
                                     <span class="seller-chip">
                                         <img src="<?= e(user_avatar($item['profile_image'])) ?>" alt="" class="avatar avatar-xs">

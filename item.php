@@ -71,7 +71,18 @@ require_once __DIR__ . '/includes/header.php';
                 <span class="badge <?= status_class($item['status']) ?>"><?= e($item['status']) ?></span>
             </div>
 
-            <p class="item-detail-price"><?= format_price((float) $item['price']) ?></p>
+            <?php if (has_discount($item)): ?>
+                <p class="item-detail-price">
+                    <span class="original-price"><?= format_price((float) $item['original_price']) ?></span>
+                    <span class="discounted-price big"><?= format_price((float) $item['price']) ?></span>
+                    <span class="discount-badge inline"><?= discount_pct($item) ?>% OFF</span>
+                </p>
+                <?php if ($item['discounted_at']): ?>
+                    <p class="muted discount-note">Price reduced by seller on <?= format_date($item['discounted_at']) ?></p>
+                <?php endif; ?>
+            <?php else: ?>
+                <p class="item-detail-price"><?= format_price((float) $item['price']) ?></p>
+            <?php endif; ?>
 
             <ul class="item-detail-meta">
                 <li><strong>Category:</strong> <a href="browse.php?category=<?= urlencode($item['category']) ?>"><?= e($item['category']) ?></a></li>

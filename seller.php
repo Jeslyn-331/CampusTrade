@@ -101,7 +101,7 @@ $rating = seller_rating($conn, $seller_id);
 
 // ---- Active listings by this seller ----
 $stmt = $conn->prepare(
-    "SELECT listing_id, title, price, item_condition, image, status, created_at
+    "SELECT listing_id, title, price, original_price, is_discounted, item_condition, image, status, created_at
      FROM listings
      WHERE user_id = ? AND status <> 'Sold'
      ORDER BY created_at DESC"
@@ -193,11 +193,13 @@ require_once __DIR__ . '/includes/header.php';
                             <span class="badge <?= condition_class($item['item_condition']) ?>"><?= e($item['item_condition']) ?></span>
                             <?php if ($item['status'] === 'Reserved'): ?>
                                 <span class="badge status-reserved">Reserved</span>
+                            <?php elseif (has_discount($item)): ?>
+                                <span class="discount-badge"><?= discount_pct($item) ?>% OFF</span>
                             <?php endif; ?>
                         </div>
                         <div class="item-body">
                             <h3 class="item-title"><?= e($item['title']) ?></h3>
-                            <p class="item-price"><?= format_price((float) $item['price']) ?></p>
+                            <p class="item-price"><?= price_html($item) ?></p>
                             <p class="item-meta"><span><?= format_date($item['created_at']) ?></span></p>
                         </div>
                     </a>

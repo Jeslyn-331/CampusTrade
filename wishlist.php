@@ -6,7 +6,8 @@ $user_id = $_SESSION['user_id'];
 
 $stmt = $conn->prepare(
     'SELECT w.wishlist_id, w.added_at,
-            l.listing_id, l.title, l.price, l.item_condition, l.image, l.status, u.username, u.profile_image
+            l.listing_id, l.title, l.price, l.original_price, l.is_discounted, l.category,
+            l.item_condition, l.image, l.status, u.username, u.profile_image
      FROM wishlist w
      JOIN listings l ON w.listing_id = l.listing_id
      JOIN users u ON l.user_id = u.user_id
@@ -40,15 +41,19 @@ require_once __DIR__ . '/includes/header.php';
                     <a href="item.php?id=<?= (int) $item['listing_id'] ?>" class="item-image">
                         <img src="<?= e(listing_image($item['image'])) ?>" alt="<?= e($item['title']) ?>">
                         <span class="badge <?= condition_class($item['item_condition']) ?>"><?= e($item['item_condition']) ?></span>
-                        <?php if ($item['status'] !== 'Available'): ?>
-                            <span class="badge <?= status_class($item['status']) ?>"><?= e($item['status']) ?></span>
+                        <?php if ($item['status'] === 'Sold'): ?>
+                            <span class="sold-overlay">SOLD</span>
+                        <?php elseif ($item['status'] === 'Reserved'): ?>
+                            <span class="badge status-reserved">Reserved</span>
+                        <?php elseif (has_discount($item)): ?>
+                            <span class="discount-badge"><?= discount_pct($item) ?>% OFF</span>
                         <?php endif; ?>
                     </a>
                     <div class="item-body">
                         <h3 class="item-title">
                             <a href="item.php?id=<?= (int) $item['listing_id'] ?>"><?= e($item['title']) ?></a>
                         </h3>
-                        <p class="item-price"><?= format_price((float) $item['price']) ?></p>
+                        <p class="item-price"><?= price_html($item) ?></p>
                         <p class="item-meta">
                             <span class="seller-chip">
                                 <img src="<?= e(user_avatar($item['profile_image'])) ?>" alt="" class="avatar avatar-xs">
@@ -60,7 +65,11 @@ require_once __DIR__ . '/includes/header.php';
                             <p class="sold-note">This item has been sold since you saved it.</p>
                         <?php endif; ?>
                         <div class="wishlist-actions">
-                            <a href="item.php?id=<?= (int) $item['listing_id'] ?>" class="btn btn-small btn-primary">View Item</a>
+                            <?php if ($item['status'] === 'Sold'): ?>
+                                <a href="<?= e(similar_items_url($item)) ?>" class="btn btn-small btn-accent">Find Similar Items</a>
+                            <?php else: ?>
+                                <a href="item.php?id=<?= (int) $item['listing_id'] ?>" class="btn btn-small btn-primary">View Item</a>
+                            <?php endif; ?>
                             <form method="post" action="wishlist_action.php">
                                 <input type="hidden" name="action" value="remove">
                                 <input type="hidden" name="listing_id" value="<?= (int) $item['listing_id'] ?>">

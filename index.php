@@ -7,13 +7,13 @@ $stats = $conn->query(
     "SELECT COUNT(*) AS available_listings FROM listings WHERE status = 'Available'"
 )->fetch_assoc();
 
-// ---- Featured listings: 8 most recent available items ----
+// ---- Featured listings: discounted items first, then most recent ----
 $featured = $conn->query(
-    "SELECT l.listing_id, l.title, l.price, l.item_condition, l.image, l.created_at, u.username, u.profile_image
+    "SELECT l.listing_id, l.title, l.price, l.original_price, l.is_discounted, l.item_condition, l.image, l.created_at, u.username, u.profile_image
      FROM listings l
      JOIN users u ON l.user_id = u.user_id
      WHERE l.status = 'Available'
-     ORDER BY l.created_at DESC
+     ORDER BY l.is_discounted DESC, l.created_at DESC
      LIMIT 8"
 )->fetch_all(MYSQLI_ASSOC);
 
@@ -86,10 +86,13 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="item-image">
                         <img src="<?= e(listing_image($item['image'])) ?>" alt="<?= e($item['title']) ?>">
                         <span class="badge <?= condition_class($item['item_condition']) ?>"><?= e($item['item_condition']) ?></span>
+                        <?php if (has_discount($item)): ?>
+                            <span class="discount-badge"><?= discount_pct($item) ?>% OFF</span>
+                        <?php endif; ?>
                     </div>
                     <div class="item-body">
                         <h3 class="item-title"><?= e($item['title']) ?></h3>
-                        <p class="item-price"><?= format_price((float) $item['price']) ?></p>
+                        <p class="item-price"><?= price_html($item) ?></p>
                         <p class="item-meta">
                             <span class="seller-chip">
                                 <img src="<?= e(user_avatar($item['profile_image'])) ?>" alt="" class="avatar avatar-xs">

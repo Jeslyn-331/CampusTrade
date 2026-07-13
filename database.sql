@@ -35,12 +35,18 @@ CREATE TABLE users (
 -- ------------------------------------------------------------
 -- Table: listings
 -- ------------------------------------------------------------
+-- price always holds the CURRENT selling price. When a discount is
+-- active, original_price keeps the pre-discount price; cancelling the
+-- discount restores price from original_price and clears these fields.
 CREATE TABLE listings (
   listing_id     INT AUTO_INCREMENT PRIMARY KEY,
   user_id        INT NOT NULL,
   title          VARCHAR(100) NOT NULL,
   description    TEXT NOT NULL,
   price          DECIMAL(10,2) NOT NULL,
+  original_price DECIMAL(10,2) NULL,
+  is_discounted  TINYINT(1) NOT NULL DEFAULT 0,
+  discounted_at  DATETIME NULL,
   category       VARCHAR(50) NOT NULL,
   item_condition ENUM('New','Like New','Good','Fair') NOT NULL,
   image          VARCHAR(255) NULL,
@@ -190,6 +196,12 @@ INSERT INTO listings (user_id, title, description, price, category, item_conditi
 (3, 'UTAR Hoodie Size L', 'Official UTAR merchandise hoodie, dark blue. Worn twice, like new.', 40.00, 'Clothing', 'Like New', 'Sold', NOW() - INTERVAL 15 DAY),
 (4, 'Principles of Marketing Kotler 17th Ed', 'Used for UKMM1043. Some notes in pencil, easy to erase.', 38.00, 'Textbooks', 'Good', 'Available', NOW() - INTERVAL 16 DAY),
 (5, 'Desk Lamp with USB Port', 'LED desk lamp with 3 brightness levels and a USB charging port at the base.', 22.00, 'Electronics', 'Like New', 'Sold', NOW() - INTERVAL 17 DAY);
+
+-- Two active discounts so the price-drop badge demos immediately
+UPDATE listings SET original_price = 1400.00, price = 1250.00, is_discounted = 1,
+  discounted_at = NOW() - INTERVAL 1 DAY WHERE listing_id = 7;   -- laptop: ~11% off
+UPDATE listings SET original_price = 80.00, price = 65.00, is_discounted = 1,
+  discounted_at = NOW() - INTERVAL 2 DAY WHERE listing_id = 12;  -- office chair: ~19% off
 
 -- Orders: every Completed order backs a seller review below;
 -- the Pending Cash order matches the Reserved mini fridge.

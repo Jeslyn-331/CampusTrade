@@ -108,7 +108,7 @@ $stmt->close();
 
 // ---- My listings ----
 $stmt = $conn->prepare(
-    'SELECT listing_id, title, price, category, item_condition, image, status, created_at
+    'SELECT listing_id, title, price, original_price, is_discounted, category, item_condition, image, status, created_at
      FROM listings WHERE user_id = ? ORDER BY created_at DESC'
 );
 $stmt->bind_param('i', $user_id);
@@ -306,12 +306,23 @@ require_once __DIR__ . '/includes/header.php';
                                     <img src="<?= e(listing_image($item['image'])) ?>" alt="" class="thumb">
                                     <a href="item.php?id=<?= (int) $item['listing_id'] ?>"><?= e($item['title']) ?></a>
                                 </td>
-                                <td><?= format_price((float) $item['price']) ?></td>
+                                <td>
+                                    <?= price_html($item) ?>
+                                    <?php if (has_discount($item)): ?>
+                                        <span class="discount-badge inline"><?= discount_pct($item) ?>% OFF</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= e($item['category']) ?></td>
                                 <td><span class="badge <?= status_class($item['status']) ?>"><?= e($item['status']) ?></span></td>
                                 <td><?= format_date($item['created_at']) ?></td>
                                 <td class="cell-actions">
                                     <a href="edit_listing.php?id=<?= (int) $item['listing_id'] ?>" class="btn btn-small btn-outline">Edit</a>
+
+                                    <?php if ($item['status'] !== 'Sold'): ?>
+                                        <a href="edit_listing.php?id=<?= (int) $item['listing_id'] ?>#discount" class="btn btn-small btn-outline">
+                                            <?= has_discount($item) ? 'Discount…' : 'Set Discount' ?>
+                                        </a>
+                                    <?php endif; ?>
 
                                     <?php if ($item['status'] !== 'Sold'): ?>
                                         <form method="post" action="dashboard.php">

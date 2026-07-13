@@ -26,7 +26,50 @@ $category       = $listing['category'];
 $item_condition = $listing['item_condition'];
 $status         = $listing['status'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// ---- Apply a discount ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_discount') {
+    $new_price = trim($_POST['discount_price'] ?? '');
+
+    if (!is_numeric($new_price) || (float) $new_price <= 0) {
+        $errors[] = 'Please enter a valid discounted price greater than 0.';
+    } elseif ((float) $new_price >= (float) $listing['price']) {
+        $errors[] = 'The discounted price must be lower than the current price (' . format_price((float) $listing['price']) . ').';
+    } elseif ($listing['is_discounted']) {
+        $errors[] = 'A discount is already active. Cancel it first to set a new one.';
+    } else {
+        $discounted = (float) $new_price;
+        // Preserve the original price so the discount can be cancelled later
+        $stmt = $conn->prepare(
+            'UPDATE listings SET original_price = price, price = ?, is_discounted = 1, discounted_at = NOW()
+             WHERE listing_id = ? AND user_id = ? AND is_discounted = 0'
+        );
+        $stmt->bind_param('dii', $discounted, $listing_id, $user_id);
+        $stmt->execute();
+        $stmt->close();
+
+        set_flash('Discount applied! Buyers now see the price drop badge.');
+        header('Location: edit_listing.php?id=' . $listing_id . '#discount');
+        exit;
+    }
+}
+
+// ---- Cancel a discount (restore the original price) ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel_discount') {
+    $stmt = $conn->prepare(
+        'UPDATE listings SET price = original_price, original_price = NULL, is_discounted = 0, discounted_at = NULL
+         WHERE listing_id = ? AND user_id = ? AND is_discounted = 1'
+    );
+    $stmt->bind_param('ii', $listing_id, $user_id);
+    $stmt->execute();
+    $stmt->close();
+
+    set_flash('Discount cancelled — the original price has been restored.');
+    header('Location: edit_listing.php?id=' . $listing_id . '#discount');
+    exit;
+}
+
+// ---- Main listing update (no action field) ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === '') {
     $title          = trim($_POST['title'] ?? '');
     $description    = trim($_POST['description'] ?? '');
     $price          = trim($_POST['price'] ?? '');
@@ -56,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $new_image = null;
     if (!$errors) {
         try {
-            $new_image = handle_image_upload($_FILES['image'] ?? []);
+            $new_image = handle_listing_image();
         } catch (RuntimeException $ex) {
             $errors[] = $ex->getMessage();
         }
@@ -153,19 +196,62 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <div class="form-group">
-                <label for="image">Replace Photo (optional, max 2 MB)</label>
+                <label for="image">Replace Photo (JPEG/PNG, max 10 MB)</label>
                 <?php if ($listing['image']): ?>
                     <div class="current-image">
                         <img src="<?= e(listing_image($listing['image'])) ?>" alt="Current photo">
                         <small>Current photo — uploading a new one replaces it.</small>
                     </div>
                 <?php endif; ?>
-                <input type="file" id="image" name="image" accept="image/*">
+                <?php require __DIR__ . '/includes/crop_tool.php'; ?>
             </div>
 
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="item.php?id=<?= $listing_id ?>" class="btn btn-outline">Cancel</a>
         </form>
+    </div>
+
+    <!-- Discount / price drop -->
+    <div class="form-card" id="discount">
+        <h2>Discount &amp; Price Drop</h2>
+
+        <?php if ($listing['is_discounted']): ?>
+            <p>This listing is on sale:
+                <span class="original-price"><?= format_price((float) $listing['original_price']) ?></span>
+                <span class="discounted-price"><?= format_price((float) $listing['price']) ?></span>
+                <span class="discount-badge inline"><?= discount_pct($listing) ?>% OFF</span>
+            </p>
+            <?php if ($listing['discounted_at']): ?>
+                <p class="muted">Discount applied on <?= format_date($listing['discounted_at']) ?>. Buyers see the price-drop badge on your listing.</p>
+            <?php endif; ?>
+
+            <form method="post" action="edit_listing.php?id=<?= $listing_id ?>"
+                  onsubmit="return confirm('Cancel the discount and restore the original price of <?= format_price((float) $listing['original_price']) ?>?');">
+                <input type="hidden" name="action" value="cancel_discount">
+                <input type="hidden" name="listing_id" value="<?= $listing_id ?>">
+                <button type="submit" class="btn btn-danger">Cancel Discount</button>
+            </form>
+        <?php else: ?>
+            <p class="muted">Item not selling? Drop the price with a visible discount badge instead of quietly editing it —
+                buyers see the original price crossed out and the percentage saved.</p>
+
+            <form method="post" action="edit_listing.php?id=<?= $listing_id ?>#discount">
+                <input type="hidden" name="action" value="set_discount">
+                <input type="hidden" name="listing_id" value="<?= $listing_id ?>">
+
+                <div class="form-group">
+                    <label for="discount_price">New Discounted Price (RM) *</label>
+                    <input type="number" id="discount_price" name="discount_price" min="0.01" step="0.01" required
+                           max="<?= e((string) $listing['price']) ?>"
+                           data-original="<?= e((string) $listing['price']) ?>"
+                           placeholder="Lower than <?= format_price((float) $listing['price']) ?>">
+                    <small>Current price: <?= format_price((float) $listing['price']) ?> &middot;
+                        <strong id="discountPctPreview" class="discount-pct-preview"></strong></small>
+                </div>
+
+                <button type="submit" class="btn btn-accent">Apply Discount</button>
+            </form>
+        <?php endif; ?>
     </div>
 </div>
 

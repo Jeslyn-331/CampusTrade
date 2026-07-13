@@ -126,8 +126,6 @@ function handle_image_upload(
         $allowed = [
             'image/jpeg' => 'jpg',
             'image/png'  => 'png',
-            'image/gif'  => 'gif',
-            'image/webp' => 'webp',
         ];
     }
 
@@ -147,6 +145,49 @@ function handle_image_upload(
     return $filename;
 }
 
+/**
+ * Save a cropped image submitted as a base64 data URL (from the
+ * crop/resize tool on the create/edit listing pages).
+ * Returns the stored filename. Throws RuntimeException on invalid data.
+ */
+function save_base64_image(string $data_url, string $prefix = 'item_'): string
+{
+    if (!preg_match('#^data:image/(jpeg|png);base64,#', $data_url, $match)) {
+        throw new RuntimeException('Invalid cropped image data.');
+    }
+    $binary = base64_decode(substr($data_url, strpos($data_url, ',') + 1), true);
+    if ($binary === false) {
+        throw new RuntimeException('Cropped image could not be decoded.');
+    }
+    if (strlen($binary) > MAX_UPLOAD_BYTES) {
+        throw new RuntimeException('Image is too large (max ' . round(MAX_UPLOAD_BYTES / 1048576) . ' MB).');
+    }
+    // Verify the decoded bytes are really an image
+    if (getimagesizefromstring($binary) === false) {
+        throw new RuntimeException('Cropped data is not a valid image.');
+    }
+
+    $filename = uniqid($prefix, true) . '.' . ($match[1] === 'png' ? 'png' : 'jpg');
+    if (file_put_contents(UPLOAD_DIR . $filename, $binary) === false) {
+        throw new RuntimeException('Could not save the cropped image.');
+    }
+    return $filename;
+}
+
+/**
+ * Resolve the listing image for a form: prefers the cropped base64 data
+ * (crop tool), falls back to the plain file upload (no-JS fallback).
+ * Returns the stored filename or null when nothing was submitted.
+ */
+function handle_listing_image(): ?string
+{
+    $cropped = $_POST['cropped_image'] ?? '';
+    if ($cropped !== '') {
+        return save_base64_image($cropped);
+    }
+    return handle_image_upload($_FILES['image'] ?? []);
+}
+
 /** Upload rules for profile pictures and QR codes: JPEG/PNG only, max 10 MB. */
 function handle_profile_image_upload(array $file, string $prefix = 'avatar_'): ?string
 {
@@ -156,6 +197,47 @@ function handle_profile_image_upload(array $file, string $prefix = 'avatar_'): ?
         PROFILE_MAX_UPLOAD_BYTES,
         $prefix
     );
+}
+
+/** Whether a listing row (with is_discounted/original_price) has an active discount. */
+function has_discount(array $listing): bool
+{
+    return !empty($listing['is_discounted']) && $listing['original_price'] !== null;
+}
+
+/** Discount percentage for a discounted listing, e.g. 20 for "20% OFF". */
+function discount_pct(array $listing): int
+{
+    $original = (float) $listing['original_price'];
+    if ($original <= 0) {
+        return 0;
+    }
+    return (int) round(($original - (float) $listing['price']) / $original * 100);
+}
+
+/** Price markup for cards/details: strikethrough original + red price when discounted. */
+function price_html(array $listing): string
+{
+    if (has_discount($listing)) {
+        return '<span class="original-price">' . format_price((float) $listing['original_price']) . '</span> '
+             . '<span class="discounted-price">' . format_price((float) $listing['price']) . '</span>';
+    }
+    return format_price((float) $listing['price']);
+}
+
+/**
+ * Browse URL for "Find Similar Items": same category, price within ±30%
+ * of the sold item, sorted by price similarity (near=).
+ */
+function similar_items_url(array $listing): string
+{
+    $price = (float) $listing['price'];
+    return 'browse.php?' . http_build_query([
+        'category'  => $listing['category'],
+        'min_price' => number_format($price * 0.7, 2, '.', ''),
+        'max_price' => number_format($price * 1.3, 2, '.', ''),
+        'near'      => number_format($price, 2, '.', ''),
+    ]);
 }
 
 /**

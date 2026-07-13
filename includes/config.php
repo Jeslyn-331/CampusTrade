@@ -13,7 +13,7 @@ define('DB_NAME', 'campustrade');
 // ---- Site settings ----
 define('SITE_NAME', 'CampusTrade');
 define('UPLOAD_DIR', __DIR__ . '/../uploads/');
-define('MAX_UPLOAD_BYTES', 2 * 1024 * 1024);          // 2 MB — item photos
+define('MAX_UPLOAD_BYTES', 10 * 1024 * 1024);         // 10 MB — item photos (JPEG/PNG)
 define('PROFILE_MAX_UPLOAD_BYTES', 10 * 1024 * 1024); // 10 MB — profile pictures / QR codes
 define('ITEMS_PER_PAGE', 12);
 
