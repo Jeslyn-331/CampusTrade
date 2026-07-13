@@ -67,7 +67,7 @@ $page = min($page, $total_pages);
 $offset = ($page - 1) * ITEMS_PER_PAGE;
 
 // ---- Fetch the current page of listings ----
-$sql = "SELECT l.listing_id, l.title, l.price, l.item_condition, l.image, l.status, l.created_at, u.username
+$sql = "SELECT l.listing_id, l.title, l.price, l.item_condition, l.image, l.status, l.created_at, u.username, u.profile_image
         FROM listings l
         JOIN users u ON l.user_id = u.user_id
         WHERE $where_sql
@@ -188,7 +188,10 @@ require_once __DIR__ . '/includes/header.php';
                                 <h3 class="item-title"><?= e($item['title']) ?></h3>
                                 <p class="item-price"><?= format_price((float) $item['price']) ?></p>
                                 <p class="item-meta">
-                                    <span><?= e($item['username']) ?></span>
+                                    <span class="seller-chip">
+                                        <img src="<?= e(user_avatar($item['profile_image'])) ?>" alt="" class="avatar avatar-xs">
+                                        <?= e($item['username']) ?>
+                                    </span>
                                     <span><?= format_date($item['created_at']) ?></span>
                                 </p>
                             </div>

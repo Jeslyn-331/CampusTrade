@@ -13,12 +13,16 @@ define('DB_NAME', 'campustrade');
 // ---- Site settings ----
 define('SITE_NAME', 'CampusTrade');
 define('UPLOAD_DIR', __DIR__ . '/../uploads/');
-define('MAX_UPLOAD_BYTES', 2 * 1024 * 1024); // 2 MB
+define('MAX_UPLOAD_BYTES', 2 * 1024 * 1024);          // 2 MB — item photos
+define('PROFILE_MAX_UPLOAD_BYTES', 10 * 1024 * 1024); // 10 MB — profile pictures / QR codes
 define('ITEMS_PER_PAGE', 12);
 
 // Fixed category list (stored as VARCHAR in listings.category)
 const CATEGORIES = ['Textbooks', 'Electronics', 'Furniture', 'Stationery', 'Clothing', 'Others'];
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair'];
+
+// Malaysian banks offered in the simulated FPX payment flow
+const FPX_BANKS = ['Maybank', 'CIMB Bank', 'Public Bank', 'RHB Bank', 'Hong Leong Bank', 'Bank Islam', 'AmBank', 'Bank Rakyat'];
 
 // ---- Session bootstrap (secure cookie settings) ----
 if (session_status() === PHP_SESSION_NONE) {

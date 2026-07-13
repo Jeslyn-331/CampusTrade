@@ -6,11 +6,23 @@
  */
 
 $wishlist_count = 0;
+$unread_count = 0;
 if (is_logged_in()) {
     $stmt = $conn->prepare('SELECT COUNT(*) FROM wishlist WHERE user_id = ?');
     $stmt->bind_param('i', $_SESSION['user_id']);
     $stmt->execute();
     $wishlist_count = (int) $stmt->get_result()->fetch_row()[0];
+    $stmt->close();
+
+    // Unread messages sent to me across all my conversations
+    $stmt = $conn->prepare(
+        'SELECT COUNT(*) FROM messages m
+         JOIN conversations c ON m.conversation_id = c.conversation_id
+         WHERE (c.buyer_id = ? OR c.seller_id = ?) AND m.sender_id <> ? AND m.is_read = 0'
+    );
+    $stmt->bind_param('iii', $_SESSION['user_id'], $_SESSION['user_id'], $_SESSION['user_id']);
+    $stmt->execute();
+    $unread_count = (int) $stmt->get_result()->fetch_row()[0];
     $stmt->close();
 }
 $current_page = basename($_SERVER['PHP_SELF']);
@@ -59,6 +71,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </form>
 
             <?php if (is_logged_in()): ?>
+                <a href="chat.php" class="wishlist-link <?= $current_page === 'chat.php' ? 'active' : '' ?>">
+                    &#128172; Chats
+                    <?php if ($unread_count > 0): ?>
+                        <span class="wishlist-badge"><?= $unread_count ?></span>
+                    <?php endif; ?>
+                </a>
                 <a href="wishlist.php" class="wishlist-link <?= $current_page === 'wishlist.php' ? 'active' : '' ?>">
                     &#9825; Wishlist
                     <?php if ($wishlist_count > 0): ?>

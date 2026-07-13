@@ -3,51 +3,9 @@ require_once __DIR__ . '/includes/db.php';
 
 $listing_id = (int) ($_GET['id'] ?? 0);
 
-// ---- Review actions (submit / delete) ----
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_login();
-    $user_id = $_SESSION['user_id'];
-    $action = $_POST['action'] ?? '';
-    $listing_id = (int) ($_POST['listing_id'] ?? $listing_id);
-
-    if ($action === 'add_review') {
-        $rating  = (int) ($_POST['rating'] ?? 0);
-        $comment = trim($_POST['comment'] ?? '');
-
-        if ($rating < 1 || $rating > 5) {
-            set_flash('Please choose a star rating between 1 and 5.', 'error');
-        } else {
-            $comment_value = $comment === '' ? null : $comment;
-            $stmt = $conn->prepare('INSERT INTO reviews (listing_id, user_id, rating, comment) VALUES (?, ?, ?, ?)');
-            $stmt->bind_param('iiis', $listing_id, $user_id, $rating, $comment_value);
-            $stmt->execute();
-            $stmt->close();
-            set_flash('Thanks — your review has been posted.');
-        }
-    } elseif ($action === 'delete_review') {
-        $review_id = (int) ($_POST['review_id'] ?? 0);
-        // Ownership check: users may only delete their own review (admins may delete any)
-        if (is_admin()) {
-            $stmt = $conn->prepare('DELETE FROM reviews WHERE review_id = ?');
-            $stmt->bind_param('i', $review_id);
-        } else {
-            $stmt = $conn->prepare('DELETE FROM reviews WHERE review_id = ? AND user_id = ?');
-            $stmt->bind_param('ii', $review_id, $user_id);
-        }
-        $stmt->execute();
-        if ($stmt->affected_rows > 0) {
-            set_flash('Review deleted.');
-        }
-        $stmt->close();
-    }
-
-    header('Location: item.php?id=' . $listing_id);
-    exit;
-}
-
 // ---- Load the listing with its seller ----
 $stmt = $conn->prepare(
-    'SELECT l.*, u.username, u.email AS seller_email, u.phone AS seller_phone, u.created_at AS seller_joined,
+    'SELECT l.*, u.username, u.profile_image AS seller_image, u.created_at AS seller_joined,
             (SELECT COUNT(*) FROM listings WHERE user_id = u.user_id) AS seller_listing_count
      FROM listings l
      JOIN users u ON l.user_id = u.user_id
@@ -71,7 +29,11 @@ if (!$item) {
     exit;
 }
 
-$is_owner = is_logged_in() && $_SESSION['user_id'] === (int) $item['user_id'];
+$seller_id = (int) $item['user_id'];
+$is_owner = is_logged_in() && $_SESSION['user_id'] === $seller_id;
+
+// Seller trust rating (reviews attach to the seller, not the listing)
+$rating = seller_rating($conn, $seller_id);
 
 // Is this item already in the viewer's wishlist?
 $in_wishlist = false;
@@ -82,21 +44,6 @@ if (is_logged_in()) {
     $in_wishlist = (bool) $stmt->get_result()->fetch_row();
     $stmt->close();
 }
-
-// ---- Reviews (newest first) with average rating ----
-$stmt = $conn->prepare(
-    'SELECT r.review_id, r.user_id, r.rating, r.comment, r.created_at, u.username
-     FROM reviews r
-     JOIN users u ON r.user_id = u.user_id
-     WHERE r.listing_id = ?
-     ORDER BY r.created_at DESC'
-);
-$stmt->bind_param('i', $listing_id);
-$stmt->execute();
-$reviews = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
-
-$avg_rating = $reviews ? array_sum(array_column($reviews, 'rating')) / count($reviews) : 0;
 
 $page_title = $item['title'];
 require_once __DIR__ . '/includes/header.php';
@@ -133,10 +80,14 @@ require_once __DIR__ . '/includes/header.php';
                 <?php if ($item['updated_at']): ?>
                     <li><strong>Updated:</strong> <?= format_date($item['updated_at']) ?></li>
                 <?php endif; ?>
-                <?php if ($reviews): ?>
-                    <li><strong>Rating:</strong> <span class="stars"><?= render_stars($avg_rating) ?></span>
-                        (<?= number_format($avg_rating, 1) ?> from <?= count($reviews) ?> review<?= count($reviews) === 1 ? '' : 's' ?>)</li>
-                <?php endif; ?>
+                <li><strong>Seller Rating:</strong>
+                    <?php if ($rating['count'] > 0): ?>
+                        <span class="stars"><?= render_stars($rating['avg']) ?></span>
+                        (<?= number_format($rating['avg'], 1) ?> from <?= $rating['count'] ?> review<?= $rating['count'] === 1 ? '' : 's' ?>)
+                    <?php else: ?>
+                        <span class="muted">No reviews yet</span>
+                    <?php endif; ?>
+                </li>
             </ul>
 
             <h2>Description</h2>
@@ -154,99 +105,43 @@ require_once __DIR__ . '/includes/header.php';
                         <button type="submit" class="btn btn-danger">Delete Listing</button>
                     </form>
                 <?php elseif (is_logged_in()): ?>
+                    <?php if ($item['status'] === 'Available'): ?>
+                        <a href="payment.php?listing_id=<?= $listing_id ?>" class="btn btn-accent">Buy Now</a>
+                    <?php endif; ?>
+                    <a href="chat.php?listing_id=<?= $listing_id ?>" class="btn btn-primary">&#128172; Chat with Seller</a>
                     <form method="post" action="wishlist_action.php">
                         <input type="hidden" name="listing_id" value="<?= $listing_id ?>">
                         <input type="hidden" name="action" value="<?= $in_wishlist ? 'remove' : 'add' ?>">
                         <input type="hidden" name="redirect" value="item.php?id=<?= $listing_id ?>">
-                        <button type="submit" class="btn <?= $in_wishlist ? 'btn-outline' : 'btn-primary' ?>">
+                        <button type="submit" class="btn btn-outline">
                             <?= $in_wishlist ? '&#10005; Remove from Wishlist' : '&#9825; Add to Wishlist' ?>
                         </button>
                     </form>
-                    <button type="button" class="btn btn-accent" id="contactSellerBtn">Contact Seller</button>
                 <?php else: ?>
-                    <a href="login.php" class="btn btn-primary">Log in to add to wishlist or contact the seller</a>
+                    <a href="login.php" class="btn btn-primary">Log in to buy, chat or save this item</a>
                 <?php endif; ?>
             </div>
-
-            <?php if (is_logged_in() && !$is_owner): ?>
-                <div class="contact-reveal" id="contactReveal" hidden>
-                    <h3>Seller Contact Details</h3>
-                    <p><strong>Email:</strong> <a href="mailto:<?= e($item['seller_email']) ?>"><?= e($item['seller_email']) ?></a></p>
-                    <?php if ($item['seller_phone']): ?>
-                        <p><strong>Phone:</strong> <?= e($item['seller_phone']) ?></p>
-                    <?php endif; ?>
-                    <p class="muted">Meet on campus in a public place for the exchange.</p>
-                </div>
-            <?php endif; ?>
         </div>
 
         <!-- Seller profile -->
         <aside class="seller-card">
             <h3>About the Seller</h3>
-            <p class="seller-name">&#128100; <?= e($item['username']) ?></p>
+            <a href="seller.php?id=<?= $seller_id ?>" class="seller-link">
+                <img src="<?= e(user_avatar($item['seller_image'])) ?>" alt="<?= e($item['username']) ?>'s profile picture"
+                     class="avatar avatar-lg">
+                <span class="seller-name"><?= e($item['username']) ?></span>
+            </a>
+            <?php if ($rating['count'] > 0): ?>
+                <p class="stars"><?= render_stars($rating['avg']) ?>
+                    <span class="muted"><?= number_format($rating['avg'], 1) ?> (<?= $rating['count'] ?>)</span></p>
+            <?php else: ?>
+                <p class="muted">No reviews yet</p>
+            <?php endif; ?>
             <p class="muted">Member since <?= format_date($item['seller_joined']) ?></p>
             <p class="muted"><?= (int) $item['seller_listing_count'] ?> listing(s) posted</p>
+            <a href="seller.php?id=<?= $seller_id ?>" class="btn btn-outline btn-small">View All Seller Reviews</a>
         </aside>
     </div>
-
-    <!-- Reviews section -->
-    <section class="reviews-section">
-        <h2>Reviews (<?= count($reviews) ?>)</h2>
-
-        <?php if (is_logged_in() && !$is_owner): ?>
-            <form method="post" action="item.php" class="review-form card" id="reviewForm">
-                <input type="hidden" name="action" value="add_review">
-                <input type="hidden" name="listing_id" value="<?= $listing_id ?>">
-
-                <div class="form-group">
-                    <label>Your Rating *</label>
-                    <div class="star-input" id="starInput">
-                        <?php for ($s = 5; $s >= 1; $s--): ?>
-                            <input type="radio" name="rating" id="star<?= $s ?>" value="<?= $s ?>" required>
-                            <label for="star<?= $s ?>" title="<?= $s ?> star<?= $s === 1 ? '' : 's' ?>">&#9733;</label>
-                        <?php endfor; ?>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="comment">Comment (optional)</label>
-                    <textarea id="comment" name="comment" rows="3" maxlength="1000"
-                              placeholder="Share your experience with this item or seller..."></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary">Post Review</button>
-            </form>
-        <?php elseif (!is_logged_in()): ?>
-            <p class="muted"><a href="login.php">Log in</a> to leave a review.</p>
-        <?php endif; ?>
-
-        <?php if (!$reviews): ?>
-            <p class="empty-state">No reviews yet for this item.</p>
-        <?php else: ?>
-            <ul class="review-list">
-                <?php foreach ($reviews as $review): ?>
-                    <li class="review card">
-                        <div class="review-head">
-                            <strong><?= e($review['username']) ?></strong>
-                            <span class="stars"><?= render_stars((float) $review['rating']) ?></span>
-                            <span class="muted"><?= format_date($review['created_at']) ?></span>
-                        </div>
-                        <?php if ($review['comment']): ?>
-                            <p><?= nl2br(e($review['comment'])) ?></p>
-                        <?php endif; ?>
-                        <?php if (is_logged_in() && ((int) $review['user_id'] === $_SESSION['user_id'] || is_admin())): ?>
-                            <form method="post" action="item.php" onsubmit="return confirm('Delete this review?');">
-                                <input type="hidden" name="action" value="delete_review">
-                                <input type="hidden" name="listing_id" value="<?= $listing_id ?>">
-                                <input type="hidden" name="review_id" value="<?= (int) $review['review_id'] ?>">
-                                <button type="submit" class="btn-link danger">Delete</button>
-                            </form>
-                        <?php endif; ?>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
-    </section>
 </div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

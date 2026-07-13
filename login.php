@@ -66,7 +66,10 @@ require_once __DIR__ . '/includes/header.php';
 
             <div class="form-group">
                 <label for="password">Password *</label>
-                <input type="password" id="password" name="password" required>
+                <div class="password-wrap">
+                    <input type="password" id="password" name="password" required>
+                    <button type="button" class="toggle-password" aria-label="Show password"></button>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary btn-block">Login</button>

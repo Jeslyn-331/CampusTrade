@@ -82,6 +82,15 @@ function listing_image(?string $image): string
     return 'images/placeholder.svg';
 }
 
+/** Path to a user's profile picture, falling back to the default avatar. */
+function user_avatar(?string $image): string
+{
+    if ($image !== null && $image !== '' && $image !== 'default.png' && is_file(UPLOAD_DIR . $image)) {
+        return 'uploads/' . rawurlencode($image);
+    }
+    return 'images/avatar.svg';
+}
+
 /** Render star icons (★/☆) for a rating of 1–5. */
 function render_stars(float $rating): string
 {
@@ -90,41 +99,99 @@ function render_stars(float $rating): string
 }
 
 /**
- * Validate and store an uploaded listing image.
+ * Validate and store an uploaded image.
  * Returns the stored filename, or null if no file was chosen.
  * Throws RuntimeException with a user-friendly message on failure.
+ *
+ * $allowed maps accepted MIME types to file extensions; $max_bytes
+ * is the size limit; $prefix names the stored file (e.g. item_, avatar_).
  */
-function handle_image_upload(array $file): ?string
-{
+function handle_image_upload(
+    array $file,
+    ?array $allowed = null,
+    int $max_bytes = MAX_UPLOAD_BYTES,
+    string $prefix = 'item_'
+): ?string {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
         return null;
     }
     if ($file['error'] !== UPLOAD_ERR_OK) {
         throw new RuntimeException('Image upload failed. Please try again.');
     }
-    if ($file['size'] > MAX_UPLOAD_BYTES) {
-        throw new RuntimeException('Image is too large (max 2 MB).');
+    if ($file['size'] > $max_bytes) {
+        throw new RuntimeException('Image is too large (max ' . round($max_bytes / 1048576) . ' MB).');
+    }
+
+    if ($allowed === null) {
+        $allowed = [
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/gif'  => 'gif',
+            'image/webp' => 'webp',
+        ];
     }
 
     // Real MIME check — do not trust the browser-supplied type.
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime  = $finfo->file($file['tmp_name']);
-    $allowed = [
-        'image/jpeg' => 'jpg',
-        'image/png'  => 'png',
-        'image/gif'  => 'gif',
-        'image/webp' => 'webp',
-    ];
     if (!isset($allowed[$mime])) {
-        throw new RuntimeException('Only JPG, PNG, GIF or WEBP images are allowed.');
+        $names = strtoupper(implode(', ', array_unique(array_values($allowed))));
+        throw new RuntimeException("Only $names images are allowed.");
     }
 
     // Rename with a unique id to prevent directory traversal / collisions.
-    $filename = uniqid('item_', true) . '.' . $allowed[$mime];
+    $filename = uniqid($prefix, true) . '.' . $allowed[$mime];
     if (!move_uploaded_file($file['tmp_name'], UPLOAD_DIR . $filename)) {
         throw new RuntimeException('Could not save the uploaded image.');
     }
     return $filename;
+}
+
+/** Upload rules for profile pictures and QR codes: JPEG/PNG only, max 10 MB. */
+function handle_profile_image_upload(array $file, string $prefix = 'avatar_'): ?string
+{
+    return handle_image_upload(
+        $file,
+        ['image/jpeg' => 'jpg', 'image/png' => 'png'],
+        PROFILE_MAX_UPLOAD_BYTES,
+        $prefix
+    );
+}
+
+/**
+ * A seller's average rating and review count as ['avg' => float, 'count' => int].
+ */
+function seller_rating(mysqli $conn, int $seller_id): array
+{
+    $stmt = $conn->prepare('SELECT AVG(rating) AS avg_rating, COUNT(*) AS total FROM reviews WHERE seller_id = ?');
+    $stmt->bind_param('i', $seller_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return ['avg' => (float) ($row['avg_rating'] ?? 0), 'count' => (int) $row['total']];
+}
+
+/**
+ * Find or create the conversation for a listing + buyer.
+ * Returns the conversation_id.
+ */
+function get_or_create_conversation(mysqli $conn, int $listing_id, int $buyer_id, int $seller_id): int
+{
+    $stmt = $conn->prepare('SELECT conversation_id FROM conversations WHERE listing_id = ? AND buyer_id = ?');
+    $stmt->bind_param('ii', $listing_id, $buyer_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($row) {
+        return (int) $row['conversation_id'];
+    }
+
+    $stmt = $conn->prepare('INSERT INTO conversations (listing_id, buyer_id, seller_id) VALUES (?, ?, ?)');
+    $stmt->bind_param('iii', $listing_id, $buyer_id, $seller_id);
+    $stmt->execute();
+    $id = $stmt->insert_id;
+    $stmt->close();
+    return $id;
 }
 
 /** Delete a stored listing image file (ignores the placeholder / missing files). */

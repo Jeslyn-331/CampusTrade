@@ -159,4 +159,87 @@ document.addEventListener('DOMContentLoaded', function () {
         { name: 'new_password', label: 'New password', required: true, minLength: 8, pattern: /^(?=.*[A-Za-z])(?=.*[0-9]).+$/, message: 'Password must contain both letters and numbers.' },
         { name: 'confirm_password', label: 'Password confirmation', required: true }
     ]);
+
+    /* ---------- Password visibility toggle (eye icon) ----------
+       Clicking the eye switches the input between type="password"
+       (hidden) and type="text" (visible), and swaps the icon. */
+    document.querySelectorAll('.toggle-password').forEach(function (toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+            var input = toggleBtn.parentElement.querySelector('input');
+            if (!input) return;
+            var type = input.type === 'password' ? 'text' : 'password';
+            input.type = type;
+            toggleBtn.classList.toggle('eye-open', type === 'text');
+            toggleBtn.setAttribute('aria-label', type === 'text' ? 'Hide password' : 'Show password');
+        });
+    });
+
+    /* ---------- Payment page: show only the selected method's panel ---------- */
+    var paymentForm = document.getElementById('paymentForm');
+    if (paymentForm) {
+        var methodRadios = paymentForm.querySelectorAll('input[name="payment_method"]');
+
+        function showPanel() {
+            var selected = paymentForm.querySelector('input[name="payment_method"]:checked');
+            ['FPX', 'QR', 'Cash'].forEach(function (method) {
+                var panel = document.getElementById('panel-' + method);
+                if (panel) {
+                    panel.hidden = !(selected && selected.value === method);
+                }
+            });
+        }
+
+        methodRadios.forEach(function (radio) {
+            radio.addEventListener('change', showPanel);
+        });
+        showPanel(); // apply initial state (e.g. after a validation error)
+    }
+
+    /* ---------- Chatbox: poll for new messages every 4 seconds ----------
+       Calls chat_fetch.php with the last seen message id; new messages
+       are appended as bubbles. textContent is used so message text can
+       never inject HTML (XSS-safe). */
+    var thread = document.getElementById('chatThread');
+    if (thread) {
+        var conversationId = thread.dataset.conversation;
+        var lastId = parseInt(thread.dataset.last, 10) || 0;
+
+        thread.scrollTop = thread.scrollHeight; // start scrolled to the newest message
+
+        function appendMessage(msg) {
+            var row = document.createElement('div');
+            row.className = 'chat-bubble-row ' + (msg.mine ? 'mine' : 'theirs');
+
+            var bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+
+            var text = document.createElement('p');
+            text.textContent = msg.text;
+
+            var time = document.createElement('span');
+            time.className = 'chat-time';
+            time.textContent = msg.time;
+
+            bubble.appendChild(text);
+            bubble.appendChild(time);
+            row.appendChild(bubble);
+            thread.appendChild(row);
+            thread.scrollTop = thread.scrollHeight;
+        }
+
+        setInterval(function () {
+            fetch('chat_fetch.php?c=' + encodeURIComponent(conversationId) + '&after=' + lastId)
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (!data.messages) return;
+                    data.messages.forEach(function (msg) {
+                        if (msg.id > lastId) {
+                            appendMessage(msg);
+                            lastId = msg.id;
+                        }
+                    });
+                })
+                .catch(function () { /* server unreachable — try again next tick */ });
+        }, 4000);
+    }
 });

@@ -6,7 +6,7 @@ $user_id = $_SESSION['user_id'];
 $errors = [];
 
 // Load current user record
-$stmt = $conn->prepare('SELECT username, email, phone, profile_image, created_at FROM users WHERE user_id = ?');
+$stmt = $conn->prepare('SELECT username, email, phone, profile_image, qr_image, created_at FROM users WHERE user_id = ?');
 $stmt->bind_param('i', $user_id);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -35,11 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         $stmt->close();
     }
 
-    // Optional profile image upload
+    // Optional profile picture upload (JPEG/PNG only, max 10 MB)
     $new_image = null;
+    $new_qr = null;
     if (!$errors) {
         try {
-            $new_image = handle_image_upload($_FILES['profile_image'] ?? []);
+            $new_image = handle_profile_image_upload($_FILES['profile_image'] ?? [], 'avatar_');
+            $new_qr    = handle_profile_image_upload($_FILES['qr_image'] ?? [], 'qr_');
         } catch (RuntimeException $ex) {
             $errors[] = $ex->getMessage();
         }
@@ -47,18 +49,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
 
     if (!$errors) {
         $phone_value = $phone === '' ? null : $phone;
+        $stmt = $conn->prepare('UPDATE users SET username = ?, phone = ? WHERE user_id = ?');
+        $stmt->bind_param('ssi', $username, $phone_value, $user_id);
+        $stmt->execute();
+        $stmt->close();
+
         if ($new_image !== null) {
             if ($user['profile_image'] !== 'default.png') {
                 delete_image_file($user['profile_image']);
             }
-            $stmt = $conn->prepare('UPDATE users SET username = ?, phone = ?, profile_image = ? WHERE user_id = ?');
-            $stmt->bind_param('sssi', $username, $phone_value, $new_image, $user_id);
-        } else {
-            $stmt = $conn->prepare('UPDATE users SET username = ?, phone = ? WHERE user_id = ?');
-            $stmt->bind_param('ssi', $username, $phone_value, $user_id);
+            $stmt = $conn->prepare('UPDATE users SET profile_image = ? WHERE user_id = ?');
+            $stmt->bind_param('si', $new_image, $user_id);
+            $stmt->execute();
+            $stmt->close();
         }
-        $stmt->execute();
-        $stmt->close();
+        if ($new_qr !== null) {
+            delete_image_file($user['qr_image']);
+            $stmt = $conn->prepare('UPDATE users SET qr_image = ? WHERE user_id = ?');
+            $stmt->bind_param('si', $new_qr, $user_id);
+            $stmt->execute();
+            $stmt->close();
+        }
 
         $_SESSION['username'] = $username;
         set_flash('Profile updated successfully.');
@@ -141,8 +152,24 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="profile_image">Profile Picture (optional, max 2 MB)</label>
-                    <input type="file" id="profile_image" name="profile_image" accept="image/*">
+                    <label for="profile_image">Profile Picture (JPEG/PNG, max 10 MB)</label>
+                    <div class="current-image">
+                        <img src="<?= e(user_avatar($user['profile_image'])) ?>" alt="Current profile picture" class="avatar avatar-lg">
+                        <small>Shown on your listings, in chats, and on your seller profile page.</small>
+                    </div>
+                    <input type="file" id="profile_image" name="profile_image" accept="image/jpeg,image/png">
+                </div>
+
+                <div class="form-group">
+                    <label for="qr_image">TNG eWallet QR Code (JPEG/PNG, max 10 MB)</label>
+                    <?php if ($user['qr_image'] && is_file(UPLOAD_DIR . $user['qr_image'])): ?>
+                        <div class="current-image">
+                            <img src="uploads/<?= e(rawurlencode($user['qr_image'])) ?>" alt="Current TNG QR code" class="qr-display qr-small">
+                            <small>Current QR — uploading a new one replaces it.</small>
+                        </div>
+                    <?php endif; ?>
+                    <input type="file" id="qr_image" name="qr_image" accept="image/jpeg,image/png">
+                    <small>Buyers scan this to pay you when they choose QR payment. Required if you want to accept QR payments.</small>
                 </div>
 
                 <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -157,18 +184,27 @@ require_once __DIR__ . '/includes/header.php';
 
                 <div class="form-group">
                     <label for="current_password">Current Password *</label>
-                    <input type="password" id="current_password" name="current_password" required>
+                    <div class="password-wrap">
+                        <input type="password" id="current_password" name="current_password" required>
+                        <button type="button" class="toggle-password" aria-label="Show password"></button>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="new_password">New Password *</label>
-                    <input type="password" id="new_password" name="new_password" required minlength="8">
+                    <div class="password-wrap">
+                        <input type="password" id="new_password" name="new_password" required minlength="8">
+                        <button type="button" class="toggle-password" aria-label="Show password"></button>
+                    </div>
                     <small>At least 8 characters with letters and numbers.</small>
                 </div>
 
                 <div class="form-group">
                     <label for="confirm_password">Confirm New Password *</label>
-                    <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+                    <div class="password-wrap">
+                        <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+                        <button type="button" class="toggle-password" aria-label="Show password"></button>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary">Change Password</button>

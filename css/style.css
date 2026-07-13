@@ -1198,6 +1198,377 @@ ul {
     color: #9db8d6;
 }
 
+/* ---------- Avatars ---------- */
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    background: var(--primary-light);
+}
+
+.avatar-xs {
+    width: 20px;
+    height: 20px;
+}
+
+.avatar-lg {
+    width: 64px;
+    height: 64px;
+}
+
+.avatar-xl {
+    width: 110px;
+    height: 110px;
+}
+
+.seller-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.seller-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+}
+
+.seller-link:hover {
+    text-decoration: none;
+}
+
+/* ---------- Password visibility toggle ---------- */
+.password-wrap {
+    position: relative;
+}
+
+.password-wrap input {
+    padding-right: 2.6rem;
+}
+
+.toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 0.4rem;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.25rem 0.4rem;
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+/* closed eye = password hidden; open eye = password visible */
+.toggle-password::before {
+    content: "\1F441";  /* eye */
+    filter: grayscale(1);
+    opacity: 0.45;
+}
+
+.toggle-password.eye-open::before {
+    filter: none;
+    opacity: 1;
+}
+
+/* ---------- Home stats (2 public metrics) ---------- */
+.stats-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* ---------- Chatbox ---------- */
+.chat-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.chat-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.chat-list-item {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    align-items: center;
+}
+
+.chat-list-item:hover {
+    background: var(--primary-light);
+    text-decoration: none;
+}
+
+.chat-list-item.active {
+    background: var(--primary-light);
+    border-left: 4px solid var(--primary);
+}
+
+.chat-list-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.chat-list-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-list-item-title {
+    font-size: 0.8rem;
+    color: var(--primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-list-preview {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-window {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    min-height: 420px;
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--primary-light);
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.chat-header-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text);
+    min-width: 0;
+}
+
+.chat-header-item:hover {
+    text-decoration: none;
+}
+
+.chat-header-thumb {
+    width: 48px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+
+.chat-thread {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 420px;
+}
+
+.chat-empty {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.chat-bubble-row {
+    display: flex;
+}
+
+.chat-bubble-row.mine {
+    justify-content: flex-end;
+}
+
+.chat-bubble-row.theirs {
+    justify-content: flex-start;
+}
+
+.chat-bubble {
+    max-width: 75%;
+    padding: 0.5rem 0.8rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.mine .chat-bubble {
+    background: var(--primary);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.theirs .chat-bubble {
+    background: var(--primary-light);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+}
+
+.chat-time {
+    display: block;
+    font-size: 0.68rem;
+    opacity: 0.75;
+    margin-top: 0.15rem;
+    text-align: right;
+}
+
+.chat-send {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border-top: 1px solid var(--border);
+}
+
+.chat-send input[type="text"] {
+    flex: 1;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+/* ---------- Payment page ---------- */
+.payment-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.order-summary {
+    text-align: center;
+    align-self: start;
+}
+
+.order-thumb {
+    width: 100%;
+    max-width: 260px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius);
+    margin: 0.5rem auto;
+}
+
+.pay-methods {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.pay-method {
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.7rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.pay-method:hover {
+    border-color: var(--primary);
+}
+
+.pay-method input {
+    position: absolute;
+    opacity: 0;
+}
+
+.pay-method:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.pay-panel {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.qr-display {
+    max-width: 220px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 0.5rem 0 1rem;
+}
+
+.qr-small {
+    max-width: 140px;
+}
+
+/* ---------- Seller profile page ---------- */
+.seller-profile-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    align-items: center;
+    margin-top: 1.5rem;
+}
+
+.seller-profile-head h1 {
+    color: var(--primary-dark);
+    margin-bottom: 0.15rem;
+}
+
+.seller-profile-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-left: auto;
+    text-align: center;
+}
+
+.review-item-ref {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.review-head .avatar {
+    width: 30px;
+    height: 30px;
+}
+
+/* ---------- Order status badges ---------- */
+.order-pending { background: var(--warning); }
+.order-completed { background: var(--success); }
+.order-cancelled { background: #757575; }
+
+.listing-table .order-pending,
+.listing-table .order-completed,
+.listing-table .order-cancelled {
+    position: static;
+}
+
 /* ============================================================
    Tablet: 768px – 1024px
    ============================================================ */
@@ -1281,6 +1652,29 @@ ul {
 
     .footer-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Chatbox: side-by-side conversation list + thread */
+    .chat-layout {
+        grid-template-columns: 280px 1fr;
+        align-items: start;
+    }
+
+    .chat-list {
+        max-height: 560px;
+    }
+
+    .chat-window {
+        min-height: 560px;
+    }
+
+    .chat-thread {
+        max-height: 560px;
+    }
+
+    .payment-layout {
+        grid-template-columns: 300px 1fr;
+        align-items: start;
     }
 }
 

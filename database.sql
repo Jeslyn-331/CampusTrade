@@ -1,12 +1,16 @@
 -- ============================================================
--- CampusTrade — Database Setup Script
+-- CampusTrade — Database Setup Script (Round 2)
 -- UECS2094 / UECS2194 / EECS2194 Web Application Development
+--
+-- 8 tables: users, listings, wishlist, reviews, contact_messages,
+--           orders, conversations, messages
 --
 -- Usage: import this file in phpMyAdmin, or run:
 --   mysql -u root < database.sql
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS campustrade
+DROP DATABASE IF EXISTS campustrade;
+CREATE DATABASE campustrade
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
@@ -14,6 +18,7 @@ USE campustrade;
 
 -- ------------------------------------------------------------
 -- Table: users
+-- qr_image stores the seller's TNG eWallet QR code filename.
 -- ------------------------------------------------------------
 CREATE TABLE users (
   user_id       INT AUTO_INCREMENT PRIMARY KEY,
@@ -22,6 +27,7 @@ CREATE TABLE users (
   password      VARCHAR(255) NOT NULL,
   phone         VARCHAR(20)  NULL,
   profile_image VARCHAR(255) NOT NULL DEFAULT 'default.png',
+  qr_image      VARCHAR(255) NULL,
   role          ENUM('user','admin') NOT NULL DEFAULT 'user',
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -47,7 +53,6 @@ CREATE TABLE listings (
 
 -- ------------------------------------------------------------
 -- Table: wishlist
--- UNIQUE (user_id, listing_id) prevents duplicate saves.
 -- ------------------------------------------------------------
 CREATE TABLE wishlist (
   wishlist_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -62,21 +67,23 @@ CREATE TABLE wishlist (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
--- Table: reviews
--- Rating range 1–5 enforced with a CHECK constraint (MySQL 8+)
--- and validated again in PHP.
+-- Table: reviews  (Round 2: attached to the SELLER, not the listing)
+-- listing_id is optional context for which item the deal involved.
 -- ------------------------------------------------------------
 CREATE TABLE reviews (
-  review_id  INT AUTO_INCREMENT PRIMARY KEY,
-  listing_id INT NOT NULL,
-  user_id    INT NOT NULL,
-  rating     INT NOT NULL,
-  comment    TEXT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_reviews_listing FOREIGN KEY (listing_id)
-    REFERENCES listings(listing_id) ON DELETE CASCADE,
-  CONSTRAINT fk_reviews_user FOREIGN KEY (user_id)
+  review_id   INT AUTO_INCREMENT PRIMARY KEY,
+  seller_id   INT NOT NULL,
+  reviewer_id INT NOT NULL,
+  listing_id  INT NULL,
+  rating      INT NOT NULL,
+  comment     TEXT NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_reviews_seller FOREIGN KEY (seller_id)
     REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_reviews_reviewer FOREIGN KEY (reviewer_id)
+    REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_reviews_listing FOREIGN KEY (listing_id)
+    REFERENCES listings(listing_id) ON DELETE SET NULL,
   CONSTRAINT chk_rating CHECK (rating BETWEEN 1 AND 5)
 ) ENGINE=InnoDB;
 
@@ -90,6 +97,68 @@ CREATE TABLE contact_messages (
   subject      VARCHAR(200) NOT NULL,
   message      TEXT NOT NULL,
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Table: orders
+-- Payment methods: FPX (simulated online banking), QR (TNG
+-- eWallet with proof screenshot), Cash (face-to-face meetup).
+-- ------------------------------------------------------------
+CREATE TABLE orders (
+  order_id       INT AUTO_INCREMENT PRIMARY KEY,
+  listing_id     INT NOT NULL,
+  buyer_id       INT NOT NULL,
+  seller_id      INT NOT NULL,
+  payment_method ENUM('FPX','QR','Cash') NOT NULL,
+  bank_name      VARCHAR(100) NULL,
+  proof_image    VARCHAR(255) NULL,
+  meetup_details TEXT NULL,
+  amount         DECIMAL(10,2) NOT NULL,
+  status         ENUM('Pending','Completed','Cancelled') NOT NULL DEFAULT 'Pending',
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_orders_listing FOREIGN KEY (listing_id)
+    REFERENCES listings(listing_id) ON DELETE CASCADE,
+  CONSTRAINT fk_orders_buyer FOREIGN KEY (buyer_id)
+    REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_orders_seller FOREIGN KEY (seller_id)
+    REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Table: conversations
+-- One thread per buyer + listing (seller comes from the listing).
+-- ------------------------------------------------------------
+CREATE TABLE conversations (
+  conversation_id INT AUTO_INCREMENT PRIMARY KEY,
+  listing_id      INT NOT NULL,
+  buyer_id        INT NOT NULL,
+  seller_id       INT NOT NULL,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_conv_listing FOREIGN KEY (listing_id)
+    REFERENCES listings(listing_id) ON DELETE CASCADE,
+  CONSTRAINT fk_conv_buyer FOREIGN KEY (buyer_id)
+    REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_conv_seller FOREIGN KEY (seller_id)
+    REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT uq_conversation UNIQUE (listing_id, buyer_id)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- Table: messages
+-- ------------------------------------------------------------
+CREATE TABLE messages (
+  message_id      INT AUTO_INCREMENT PRIMARY KEY,
+  conversation_id INT NOT NULL,
+  sender_id       INT NOT NULL,
+  message_text    TEXT NOT NULL,
+  is_read         TINYINT(1) NOT NULL DEFAULT 0,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_msg_conversation FOREIGN KEY (conversation_id)
+    REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+  CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id)
+    REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ============================================================
@@ -117,17 +186,39 @@ INSERT INTO listings (user_id, title, description, price, category, item_conditi
 (3, 'A4 Ring Files x6 (Assorted Colours)', 'Six thick A4 ring files, lightly used for one semester. Selling as a bundle.', 12.00, 'Stationery', 'Good', 'Available', NOW() - INTERVAL 11 DAY),
 (4, 'Mini Fridge 45L', 'Compact fridge suitable for hostel room. Cold and quiet. Self collect only.', 180.00, 'Electronics', 'Good', 'Reserved', NOW() - INTERVAL 12 DAY),
 (5, 'Office Chair with Wheels', 'Adjustable height office chair, comfortable for long study sessions. Small scratch on armrest.', 65.00, 'Furniture', 'Fair', 'Available', NOW() - INTERVAL 13 DAY),
-(2, 'Graphing Paper Pad + Drawing Set', 'Unused graphing pad plus compass/protractor set still in packaging.', 10.00, 'Stationery', 'New', 'Available', NOW() - INTERVAL 14 DAY),
+(2, 'Graphing Paper Pad + Drawing Set', 'Unused graphing pad plus compass/protractor set still in packaging.', 10.00, 'Stationery', 'New', 'Sold', NOW() - INTERVAL 14 DAY),
 (3, 'UTAR Hoodie Size L', 'Official UTAR merchandise hoodie, dark blue. Worn twice, like new.', 40.00, 'Clothing', 'Like New', 'Sold', NOW() - INTERVAL 15 DAY),
 (4, 'Principles of Marketing Kotler 17th Ed', 'Used for UKMM1043. Some notes in pencil, easy to erase.', 38.00, 'Textbooks', 'Good', 'Available', NOW() - INTERVAL 16 DAY),
-(5, 'Desk Lamp with USB Port', 'LED desk lamp with 3 brightness levels and a USB charging port at the base.', 22.00, 'Electronics', 'Like New', 'Available', NOW() - INTERVAL 17 DAY);
+(5, 'Desk Lamp with USB Port', 'LED desk lamp with 3 brightness levels and a USB charging port at the base.', 22.00, 'Electronics', 'Like New', 'Sold', NOW() - INTERVAL 17 DAY);
 
-INSERT INTO reviews (listing_id, user_id, rating, comment, created_at) VALUES
-(1, 3, 5, 'Bought this book — exactly as described, very clean copy. Friendly seller!', NOW() - INTERVAL 1 DAY),
-(1, 4, 4, 'Good price for this textbook, highlighting is minimal as stated.', NOW() - INTERVAL 12 HOUR),
-(3, 2, 5, 'Desk is sturdy and the seller helped me carry it. Recommended.', NOW() - INTERVAL 2 DAY),
-(7, 2, 4, 'Laptop runs smoothly, honest description of battery condition.', NOW() - INTERVAL 3 DAY),
-(14, 5, 5, 'Hoodie quality is great, fast deal on campus.', NOW() - INTERVAL 5 DAY);
+-- Orders: every Completed order backs a seller review below;
+-- the Pending Cash order matches the Reserved mini fridge.
+INSERT INTO orders (listing_id, buyer_id, seller_id, payment_method, bank_name, proof_image, meetup_details, amount, status, created_at) VALUES
+(14, 5, 3, 'Cash', NULL, NULL, 'Meet at Block D cafeteria, Friday 2pm', 40.00, 'Completed', NOW() - INTERVAL 5 DAY),
+(13, 4, 2, 'Cash', NULL, NULL, 'Library entrance, Tuesday after class (4pm)', 10.00, 'Completed', NOW() - INTERVAL 6 DAY),
+(16, 2, 5, 'FPX', 'Maybank', NULL, NULL, 22.00, 'Completed', NOW() - INTERVAL 4 DAY),
+(11, 2, 4, 'Cash', NULL, NULL, 'KB Block lobby, Saturday 11am', 180.00, 'Pending', NOW() - INTERVAL 1 DAY);
+
+-- Seller reviews (each reviewer has a Completed order with that seller)
+INSERT INTO reviews (seller_id, reviewer_id, listing_id, rating, comment, created_at) VALUES
+(3, 5, 14, 5, 'Hoodie quality is great, fast deal on campus. Friendly and punctual seller!', NOW() - INTERVAL 4 DAY),
+(2, 4, 13, 5, 'Item was brand new as described. Smooth meetup, highly recommended seller.', NOW() - INTERVAL 5 DAY),
+(5, 2, 16, 4, 'Lamp works perfectly. Seller replied fast and confirmed my FPX payment quickly.', NOW() - INTERVAL 3 DAY);
 
 INSERT INTO wishlist (user_id, listing_id) VALUES
-(2, 3), (2, 7), (3, 1), (3, 5), (4, 4), (5, 6), (2, 14);
+(2, 3), (2, 7), (3, 1), (3, 5), (4, 4), (5, 6);
+
+-- Conversations + messages
+INSERT INTO conversations (listing_id, buyer_id, seller_id, created_at, updated_at) VALUES
+(3, 2, 3, NOW() - INTERVAL 2 DAY, NOW() - INTERVAL 2 HOUR),   -- aisyah asks weijie about the desk
+(7, 3, 5, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 5 HOUR),   -- weijie asks marcus about the laptop
+(11, 2, 4, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY);   -- aisyah arranged the fridge deal with priya
+
+INSERT INTO messages (conversation_id, sender_id, message_text, is_read, created_at) VALUES
+(1, 2, 'Hi! Is the study desk still available?', 1, NOW() - INTERVAL 2 DAY),
+(1, 3, 'Yes it is! You can self collect at Westlake condo.', 1, NOW() - INTERVAL 2 DAY + INTERVAL 10 MINUTE),
+(1, 2, 'Great, would Saturday morning work for you?', 0, NOW() - INTERVAL 2 HOUR),
+(2, 3, 'Hello, how is the battery life on the laptop?', 1, NOW() - INTERVAL 1 DAY),
+(2, 5, 'About 4-5 hours of normal use. Battery health is around 85%.', 0, NOW() - INTERVAL 5 HOUR),
+(3, 2, 'Hi, I would like to buy the mini fridge. Cash on Saturday?', 1, NOW() - INTERVAL 1 DAY),
+(3, 4, 'Sure! KB Block lobby at 11am works for me.', 1, NOW() - INTERVAL 1 DAY + INTERVAL 15 MINUTE);

@@ -1,17 +1,15 @@
 <?php
 require_once __DIR__ . '/includes/db.php';
 
-// ---- Platform statistics (live from the database) ----
+// ---- Platform statistics: public-friendly metrics only ----
+// (Items sold / earnings / user counts are private to each seller's dashboard.)
 $stats = $conn->query(
-    "SELECT
-        (SELECT COUNT(*) FROM listings)                        AS total_listings,
-        (SELECT COUNT(*) FROM users)                           AS total_users,
-        (SELECT COUNT(*) FROM listings WHERE status = 'Sold')  AS items_sold"
+    "SELECT COUNT(*) AS available_listings FROM listings WHERE status = 'Available'"
 )->fetch_assoc();
 
 // ---- Featured listings: 8 most recent available items ----
 $featured = $conn->query(
-    "SELECT l.listing_id, l.title, l.price, l.item_condition, l.image, l.created_at, u.username
+    "SELECT l.listing_id, l.title, l.price, l.item_condition, l.image, l.created_at, u.username, u.profile_image
      FROM listings l
      JOIN users u ON l.user_id = u.user_id
      WHERE l.status = 'Available'
@@ -36,20 +34,16 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<!-- Platform statistics -->
+<!-- Platform statistics (public-friendly metrics only) -->
 <section class="stats-bar">
-    <div class="container stats-grid">
+    <div class="container stats-grid stats-grid-2">
         <div class="stat">
-            <span class="stat-number"><?= (int) $stats['total_listings'] ?></span>
-            <span class="stat-label">Total Listings</span>
+            <span class="stat-number"><?= (int) $stats['available_listings'] ?></span>
+            <span class="stat-label">Items Available Now</span>
         </div>
         <div class="stat">
-            <span class="stat-number"><?= (int) $stats['total_users'] ?></span>
-            <span class="stat-label">Active Users</span>
-        </div>
-        <div class="stat">
-            <span class="stat-number"><?= (int) $stats['items_sold'] ?></span>
-            <span class="stat-label">Items Sold</span>
+            <span class="stat-number"><?= count(CATEGORIES) ?></span>
+            <span class="stat-label">Categories to Explore</span>
         </div>
     </div>
 </section>
@@ -97,7 +91,10 @@ require_once __DIR__ . '/includes/header.php';
                         <h3 class="item-title"><?= e($item['title']) ?></h3>
                         <p class="item-price"><?= format_price((float) $item['price']) ?></p>
                         <p class="item-meta">
-                            <span><?= e($item['username']) ?></span>
+                            <span class="seller-chip">
+                                <img src="<?= e(user_avatar($item['profile_image'])) ?>" alt="" class="avatar avatar-xs">
+                                <?= e($item['username']) ?>
+                            </span>
                             <span><?= format_date($item['created_at']) ?></span>
                         </p>
                     </div>

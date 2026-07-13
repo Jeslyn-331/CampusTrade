@@ -6,7 +6,7 @@ $user_id = $_SESSION['user_id'];
 
 $stmt = $conn->prepare(
     'SELECT w.wishlist_id, w.added_at,
-            l.listing_id, l.title, l.price, l.item_condition, l.image, l.status, u.username
+            l.listing_id, l.title, l.price, l.item_condition, l.image, l.status, u.username, u.profile_image
      FROM wishlist w
      JOIN listings l ON w.listing_id = l.listing_id
      JOIN users u ON l.user_id = u.user_id
@@ -50,7 +50,10 @@ require_once __DIR__ . '/includes/header.php';
                         </h3>
                         <p class="item-price"><?= format_price((float) $item['price']) ?></p>
                         <p class="item-meta">
-                            <span><?= e($item['username']) ?></span>
+                            <span class="seller-chip">
+                                <img src="<?= e(user_avatar($item['profile_image'])) ?>" alt="" class="avatar avatar-xs">
+                                <?= e($item['username']) ?>
+                            </span>
                             <span>Saved <?= format_date($item['added_at']) ?></span>
                         </p>
                         <?php if ($item['status'] === 'Sold'): ?>
