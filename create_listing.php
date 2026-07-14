@@ -120,7 +120,7 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <div class="form-group">
-                <label for="image">Item Photo (JPEG/PNG, max 10 MB)</label>
+                <label for="image">Item Photo (JPEG, PNG or WebP, max 10 MB)</label>
                 <?php require __DIR__ . '/includes/crop_tool.php'; ?>
                 <small>After choosing a photo, the crop tool opens so you can frame it before publishing.</small>
             </div>

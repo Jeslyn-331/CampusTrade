@@ -330,8 +330,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 itemFileInput.value = '';
                 return;
             }
-            if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
-                alert('Only JPEG and PNG images are allowed.');
+            var allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (allowedTypes.indexOf(file.type) === -1) {
+                alert('Invalid format. Please upload JPG, PNG, or WebP.');
                 itemFileInput.value = '';
                 return;
             }

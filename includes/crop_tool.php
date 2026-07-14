@@ -6,7 +6,7 @@
  * The behaviour lives in js/main.js (vanilla JS + HTML5 Canvas).
  */
 ?>
-<input type="file" id="image" name="image" accept="image/jpeg,image/png">
+<input type="file" id="image" name="image" accept=".jpg,.jpeg,.png,.webp">
 <input type="hidden" name="cropped_image" id="croppedImage">
 
 <div class="crop-tool" id="cropTool" hidden>

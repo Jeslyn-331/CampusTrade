@@ -126,6 +126,7 @@ function handle_image_upload(
         $allowed = [
             'image/jpeg' => 'jpg',
             'image/png'  => 'png',
+            'image/webp' => 'webp',
         ];
     }
 
@@ -152,7 +153,7 @@ function handle_image_upload(
  */
 function save_base64_image(string $data_url, string $prefix = 'item_'): string
 {
-    if (!preg_match('#^data:image/(jpeg|png);base64,#', $data_url, $match)) {
+    if (!preg_match('#^data:image/(jpeg|png|webp);base64,#', $data_url, $match)) {
         throw new RuntimeException('Invalid cropped image data.');
     }
     $binary = base64_decode(substr($data_url, strpos($data_url, ',') + 1), true);
@@ -167,7 +168,8 @@ function save_base64_image(string $data_url, string $prefix = 'item_'): string
         throw new RuntimeException('Cropped data is not a valid image.');
     }
 
-    $filename = uniqid($prefix, true) . '.' . ($match[1] === 'png' ? 'png' : 'jpg');
+    $extensions = ['jpeg' => 'jpg', 'png' => 'png', 'webp' => 'webp'];
+    $filename = uniqid($prefix, true) . '.' . $extensions[$match[1]];
     if (file_put_contents(UPLOAD_DIR . $filename, $binary) === false) {
         throw new RuntimeException('Could not save the cropped image.');
     }
@@ -188,12 +190,12 @@ function handle_listing_image(): ?string
     return handle_image_upload($_FILES['image'] ?? []);
 }
 
-/** Upload rules for profile pictures and QR codes: JPEG/PNG only, max 10 MB. */
+/** Upload rules for profile pictures, QR codes and payment proofs: JPEG/PNG/WebP, max 10 MB. */
 function handle_profile_image_upload(array $file, string $prefix = 'avatar_'): ?string
 {
     return handle_image_upload(
         $file,
-        ['image/jpeg' => 'jpg', 'image/png' => 'png'],
+        ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'],
         PROFILE_MAX_UPLOAD_BYTES,
         $prefix
     );

@@ -196,7 +196,7 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <div class="form-group">
-                <label for="image">Replace Photo (JPEG/PNG, max 10 MB)</label>
+                <label for="image">Replace Photo (JPEG, PNG or WebP, max 10 MB)</label>
                 <?php if ($listing['image']): ?>
                     <div class="current-image">
                         <img src="<?= e(listing_image($listing['image'])) ?>" alt="Current photo">

@@ -152,23 +152,23 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="profile_image">Profile Picture (JPEG/PNG, max 10 MB)</label>
+                    <label for="profile_image">Profile Picture (JPEG, PNG or WebP, max 10 MB)</label>
                     <div class="current-image">
                         <img src="<?= e(user_avatar($user['profile_image'])) ?>" alt="Current profile picture" class="avatar avatar-lg">
                         <small>Shown on your listings, in chats, and on your seller profile page.</small>
                     </div>
-                    <input type="file" id="profile_image" name="profile_image" accept="image/jpeg,image/png">
+                    <input type="file" id="profile_image" name="profile_image" accept=".jpg,.jpeg,.png,.webp">
                 </div>
 
                 <div class="form-group">
-                    <label for="qr_image">TNG eWallet QR Code (JPEG/PNG, max 10 MB)</label>
+                    <label for="qr_image">TNG eWallet QR Code (JPEG, PNG or WebP, max 10 MB)</label>
                     <?php if ($user['qr_image'] && is_file(UPLOAD_DIR . $user['qr_image'])): ?>
                         <div class="current-image">
                             <img src="uploads/<?= e(rawurlencode($user['qr_image'])) ?>" alt="Current TNG QR code" class="qr-display qr-small">
                             <small>Current QR — uploading a new one replaces it.</small>
                         </div>
                     <?php endif; ?>
-                    <input type="file" id="qr_image" name="qr_image" accept="image/jpeg,image/png">
+                    <input type="file" id="qr_image" name="qr_image" accept=".jpg,.jpeg,.png,.webp">
                     <small>Buyers scan this to pay you when they choose QR payment. Required if you want to accept QR payments.</small>
                 </div>
 

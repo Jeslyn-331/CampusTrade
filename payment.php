@@ -73,23 +73,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $bank_value   = $payment_method === 'FPX'  ? $bank_name : null;
         $meetup_value = $payment_method === 'Cash' ? $meetup_details : null;
 
-        $stmt = $conn->prepare(
-            'INSERT INTO orders (listing_id, buyer_id, seller_id, payment_method, bank_name, proof_image, meetup_details, amount)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->bind_param('iiissssd', $listing_id, $user_id, $seller_id, $payment_method, $bank_value, $proof_image, $meetup_value, $amount);
-        $stmt->execute();
-        $stmt->close();
+        // Cash deals stay Reserved until the meetup; FPX/QR mark the item Sold immediately
+        $new_status = $payment_method === 'Cash' ? 'Reserved' : 'Sold';
 
-        // Reserve the item until the seller confirms / either party completes
-        $stmt = $conn->prepare("UPDATE listings SET status = 'Reserved' WHERE listing_id = ?");
-        $stmt->bind_param('i', $listing_id);
-        $stmt->execute();
-        $stmt->close();
+        // Order + listing status + wishlist auto-clear happen atomically:
+        // either all three succeed or none do.
+        $conn->begin_transaction();
+        try {
+            // Step 1: create the order
+            $stmt = $conn->prepare(
+                'INSERT INTO orders (listing_id, buyer_id, seller_id, payment_method, bank_name, proof_image, meetup_details, amount)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->bind_param('iiissssd', $listing_id, $user_id, $seller_id, $payment_method, $bank_value, $proof_image, $meetup_value, $amount);
+            $stmt->execute();
+            $stmt->close();
 
-        set_flash('Order placed! The item is now reserved for you. Track its status in your dashboard.');
-        header('Location: dashboard.php');
-        exit;
+            // Step 2: update the listing status
+            $stmt = $conn->prepare('UPDATE listings SET status = ? WHERE listing_id = ?');
+            $stmt->bind_param('si', $new_status, $listing_id);
+            $stmt->execute();
+            $stmt->close();
+
+            // Step 3: auto-clear the item from THIS buyer's wishlist only —
+            // other users keep their entry and see the Sold/Reserved state.
+            $stmt = $conn->prepare('DELETE FROM wishlist WHERE user_id = ? AND listing_id = ?');
+            $stmt->bind_param('ii', $user_id, $listing_id);
+            $stmt->execute();
+            $stmt->close();
+
+            $conn->commit();
+        } catch (mysqli_sql_exception $ex) {
+            $conn->rollback();
+            $errors[] = 'Something went wrong while placing your order. Please try again.';
+        }
+
+        if (!$errors) {
+            set_flash($payment_method === 'Cash'
+                ? 'Order placed! The item is now reserved for you — confirm the meetup in your dashboard.'
+                : 'Order placed! Waiting for the seller to confirm your payment. Track it in your dashboard.');
+            header('Location: dashboard.php');
+            exit;
+        }
     }
 }
 
@@ -163,8 +188,8 @@ require_once __DIR__ . '/includes/header.php';
                         <p><strong>Scan the seller's TNG eWallet QR code:</strong></p>
                         <img src="uploads/<?= e(rawurlencode($item['seller_qr'])) ?>" alt="Seller's TNG QR code" class="qr-display">
                         <div class="form-group">
-                            <label for="proof_image">Upload Payment Screenshot (JPEG/PNG) *</label>
-                            <input type="file" id="proof_image" name="proof_image" accept="image/jpeg,image/png">
+                            <label for="proof_image">Upload Payment Screenshot (JPEG, PNG or WebP) *</label>
+                            <input type="file" id="proof_image" name="proof_image" accept=".jpg,.jpeg,.png,.webp">
                             <small>No real payment needed for this assignment — any screenshot image works.</small>
                         </div>
                     <?php else: ?>
