@@ -107,8 +107,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'chang
         $stmt->execute();
         $stmt->close();
 
-        set_flash('Password changed successfully.');
-        header('Location: profile.php');
+        // Forced re-login: destroy the old session entirely so it cannot
+        // remain valid in the background, then send the user to log in
+        // again with their new password.
+        $_SESSION = [];
+        session_unset();
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
+        session_destroy();
+
+        header('Location: login.php?msg=password_changed');
         exit;
     }
 }

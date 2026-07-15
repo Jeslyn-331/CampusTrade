@@ -9,6 +9,10 @@ if (is_logged_in()) {
 $errors = [];
 $email = '';
 
+// Confirmation banner after a secure password change (exact value only —
+// arbitrary URL input is never echoed).
+$password_changed = ($_GET['msg'] ?? '') === 'password_changed';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -47,6 +51,12 @@ require_once __DIR__ . '/includes/header.php';
     <div class="auth-card">
         <h1>Welcome Back</h1>
         <p class="auth-subtitle">Log in to manage your listings and wishlist.</p>
+
+        <?php if ($password_changed): ?>
+            <div class="alert alert-success">
+                Your password was changed successfully. Please log in with your new password.
+            </div>
+        <?php endif; ?>
 
         <?php if ($errors): ?>
             <div class="alert alert-error">
