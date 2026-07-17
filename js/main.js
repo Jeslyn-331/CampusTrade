@@ -264,51 +264,63 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* ============================================================
-       Image crop & resize tool (create/edit listing)
-       Vanilla JS + HTML5 Canvas, no libraries. The crop box is
-       locked to 4:3; output is 800x600 JPEG submitted as base64.
+       Image crop & resize tool — shared component.
+       Vanilla JS + HTML5 Canvas, no libraries. Each .crop-root on
+       the page is initialised with its own configuration read from
+       data attributes:
+         data-ratio   : width/height lock (e.g. "1"), empty = free-form
+         data-circle  : "1" = circular (avatar-style) mask
+         data-out-w/h : output resolution
+       Listing photos: free-form, rectangular, 1600x1200.
+       Profile pictures: 1:1 locked, circular, 400x400.
        Pointer events cover both mouse and touch input.
        ============================================================ */
-    var itemFileInput = document.getElementById('image');
-    var cropTool = document.getElementById('cropTool');
-
-    if (itemFileInput && cropTool) {
+    function initCropTool(root) {
         var MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
-        var OUTPUT_W = 800, OUTPUT_H = 600;     // 4:3 output
-        var RATIO = OUTPUT_W / OUTPUT_H;        // width / height
         var MIN_BOX = 40;
 
-        var cropStage = document.getElementById('cropStage');
-        var cropImage = document.getElementById('cropImage');
-        var cropBox = document.getElementById('cropBox');
-        var croppedInput = document.getElementById('croppedImage');
-        var previewWrap = document.getElementById('cropPreviewWrap');
-        var previewImg = document.getElementById('cropPreview');
+        var ratio = parseFloat(root.dataset.ratio) || null; // width/height; null = free-form
+        var outW = parseInt(root.dataset.outW, 10);
+        var outH = parseInt(root.dataset.outH, 10);
 
-        // Crop box state in DISPLAYED-image pixels (height derived from width)
-        var box = { x: 0, y: 0, w: 0 };
+        var fileInput = root.querySelector('.crop-file');
+        var croppedInput = root.querySelector('.crop-data');
+        var tool = root.querySelector('.crop-tool');
+        var cropImage = root.querySelector('.crop-image');
+        var cropBox = root.querySelector('.crop-box');
+        var previewWrap = root.querySelector('.crop-preview-wrap');
+        var previewImg = root.querySelector('.crop-preview');
+
+        // Crop box state in DISPLAYED-image pixels
+        var box = { x: 0, y: 0, w: 0, h: 0 };
         var stageW = 0, stageH = 0;
-
-        function boxH() { return box.w / RATIO; }
 
         function renderBox() {
             cropBox.style.left = box.x + 'px';
             cropBox.style.top = box.y + 'px';
             cropBox.style.width = box.w + 'px';
-            cropBox.style.height = boxH() + 'px';
+            cropBox.style.height = box.h + 'px';
         }
 
         function initBox() {
             stageW = cropImage.clientWidth;
             stageH = cropImage.clientHeight;
-            // Largest 4:3 box that fits the image, centered
-            if (stageW / stageH > RATIO) {
-                box.w = stageH * RATIO;
+            if (ratio) {
+                // Largest ratio-locked box that fits the image, centered
+                if (stageW / stageH > ratio) {
+                    box.h = stageH;
+                    box.w = stageH * ratio;
+                } else {
+                    box.w = stageW;
+                    box.h = stageW / ratio;
+                }
             } else {
+                // Free-form: start with the full image selected
                 box.w = stageW;
+                box.h = stageH;
             }
             box.x = (stageW - box.w) / 2;
-            box.y = (stageH - boxH()) / 2;
+            box.y = (stageH - box.h) / 2;
             renderBox();
         }
 
@@ -317,30 +329,30 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // ---- File selection: validate size/type, then open the crop tool ----
-        itemFileInput.addEventListener('change', function () {
+        fileInput.addEventListener('change', function () {
             croppedInput.value = '';
             previewWrap.hidden = true;
-            cropTool.hidden = true;
+            tool.hidden = true;
 
-            var file = itemFileInput.files[0];
+            var file = fileInput.files[0];
             if (!file) return;
 
             if (file.size > MAX_IMAGE_BYTES) {
                 alert('Image too large. Maximum file size is 10MB. Please compress your image or choose a smaller file.');
-                itemFileInput.value = '';
+                fileInput.value = '';
                 return;
             }
             var allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
             if (allowedTypes.indexOf(file.type) === -1) {
                 alert('Invalid format. Please upload JPG, PNG, or WebP.');
-                itemFileInput.value = '';
+                fileInput.value = '';
                 return;
             }
 
             var reader = new FileReader();
             reader.onload = function (e) {
                 cropImage.onload = function () {
-                    cropTool.hidden = false;
+                    tool.hidden = false;
                     // Wait a frame so the browser lays out the displayed size
                     requestAnimationFrame(initBox);
                 };
@@ -360,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 corner: corner,
                 startX: e.clientX,
                 startY: e.clientY,
-                startBox: { x: box.x, y: box.y, w: box.w }
+                startBox: { x: box.x, y: box.y, w: box.w, h: box.h }
             };
             cropBox.setPointerCapture(e.pointerId);
         });
@@ -373,33 +385,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (gesture.mode === 'drag') {
                 box.x = clamp(start.x + dx, 0, stageW - box.w);
-                box.y = clamp(start.y + dy, 0, stageH - boxH());
+                box.y = clamp(start.y + dy, 0, stageH - box.h);
             } else {
-                // Resize keeping the opposite corner anchored and 4:3 locked
-                var startH = start.w / RATIO;
-                var anchorX, anchorY, newW;
+                // Resize keeping the opposite corner anchored
+                var corner = gesture.corner;
+                var anchorX = corner === 'nw' || corner === 'sw' ? start.x + start.w : start.x;
+                var anchorY = corner === 'nw' || corner === 'ne' ? start.y + start.h : start.y;
+                var growRight = corner === 'ne' || corner === 'se';
+                var growDown = corner === 'sw' || corner === 'se';
 
-                if (gesture.corner === 'se') {
-                    anchorX = start.x; anchorY = start.y;
-                    newW = start.w + dx;
-                    newW = clamp(newW, MIN_BOX, Math.min(stageW - anchorX, (stageH - anchorY) * RATIO));
-                    box.x = anchorX; box.y = anchorY; box.w = newW;
-                } else if (gesture.corner === 'sw') {
-                    anchorX = start.x + start.w; anchorY = start.y;
-                    newW = start.w - dx;
-                    newW = clamp(newW, MIN_BOX, Math.min(anchorX, (stageH - anchorY) * RATIO));
-                    box.w = newW; box.x = anchorX - newW; box.y = anchorY;
-                } else if (gesture.corner === 'ne') {
-                    anchorX = start.x; anchorY = start.y + startH;
-                    newW = start.w + dx;
-                    newW = clamp(newW, MIN_BOX, Math.min(stageW - anchorX, anchorY * RATIO));
-                    box.w = newW; box.x = anchorX; box.y = anchorY - newW / RATIO;
-                } else { // 'nw'
-                    anchorX = start.x + start.w; anchorY = start.y + startH;
-                    newW = start.w - dx;
-                    newW = clamp(newW, MIN_BOX, Math.min(anchorX, anchorY * RATIO));
-                    box.w = newW; box.x = anchorX - newW; box.y = anchorY - newW / RATIO;
+                var newW = growRight ? start.w + dx : start.w - dx;
+                var maxW = growRight ? stageW - anchorX : anchorX;
+
+                if (ratio) {
+                    // Width drives the resize; height follows the lock
+                    var maxH = growDown ? stageH - anchorY : anchorY;
+                    newW = clamp(newW, MIN_BOX, Math.min(maxW, maxH * ratio));
+                    box.w = newW;
+                    box.h = newW / ratio;
+                } else {
+                    // Free-form: width and height resize independently
+                    var newH = growDown ? start.h + dy : start.h - dy;
+                    box.w = clamp(newW, MIN_BOX, maxW);
+                    box.h = clamp(newH, MIN_BOX, growDown ? stageH - anchorY : anchorY);
                 }
+                box.x = growRight ? anchorX : anchorX - box.w;
+                box.y = growDown ? anchorY : anchorY - box.h;
             }
             renderBox();
         });
@@ -409,37 +420,40 @@ document.addEventListener('DOMContentLoaded', function () {
         cropBox.addEventListener('pointercancel', endGesture);
 
         // ---- Confirm: draw the selection onto a canvas and export base64 ----
-        document.getElementById('cropConfirm').addEventListener('click', function () {
+        root.querySelector('.crop-confirm').addEventListener('click', function () {
             var scaleX = cropImage.naturalWidth / cropImage.clientWidth;
             var scaleY = cropImage.naturalHeight / cropImage.clientHeight;
 
             var canvas = document.createElement('canvas');
-            canvas.width = OUTPUT_W;
-            canvas.height = OUTPUT_H;
+            canvas.width = outW;
+            canvas.height = outH;
             var ctx = canvas.getContext('2d');
             ctx.drawImage(
                 cropImage,
-                box.x * scaleX, box.y * scaleY, box.w * scaleX, boxH() * scaleY,
-                0, 0, OUTPUT_W, OUTPUT_H
+                box.x * scaleX, box.y * scaleY, box.w * scaleX, box.h * scaleY,
+                0, 0, outW, outH
             );
 
+            // 0.85 JPEG quality keeps file size reasonable even at 1600x1200
             var dataURL = canvas.toDataURL('image/jpeg', 0.85);
             croppedInput.value = dataURL;
             previewImg.src = dataURL;
             previewWrap.hidden = false;
-            cropTool.hidden = true;
+            tool.hidden = true;
             // The cropped base64 replaces the raw file — clear it so the
             // original (possibly huge) file is not uploaded as well.
-            itemFileInput.value = '';
+            fileInput.value = '';
         });
 
-        document.getElementById('cropReset').addEventListener('click', initBox);
+        root.querySelector('.crop-reset').addEventListener('click', initBox);
 
-        document.getElementById('cropCancel').addEventListener('click', function () {
-            cropTool.hidden = true;
+        root.querySelector('.crop-cancel').addEventListener('click', function () {
+            tool.hidden = true;
             previewWrap.hidden = true;
-            itemFileInput.value = '';
+            fileInput.value = '';
             croppedInput.value = '';
         });
     }
+
+    document.querySelectorAll('.crop-root').forEach(initCropTool);
 });

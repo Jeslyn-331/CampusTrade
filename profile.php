@@ -35,13 +35,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         $stmt->close();
     }
 
-    // Optional profile picture upload (JPEG/PNG only, max 10 MB)
+    // Optional profile picture upload (JPEG/PNG/WebP, max 10 MB).
+    // Prefers the 400x400 crop-tool output; plain upload is the no-JS fallback.
     $new_image = null;
     $new_qr = null;
     if (!$errors) {
         try {
-            $new_image = handle_profile_image_upload($_FILES['profile_image'] ?? [], 'avatar_');
-            $new_qr    = handle_profile_image_upload($_FILES['qr_image'] ?? [], 'qr_');
+            $cropped_avatar = $_POST['cropped_profile_image'] ?? '';
+            if ($cropped_avatar !== '') {
+                $new_image = save_base64_image($cropped_avatar, 'avatar_');
+            } else {
+                $new_image = handle_profile_image_upload($_FILES['profile_image'] ?? [], 'avatar_');
+            }
+            $new_qr = handle_profile_image_upload($_FILES['qr_image'] ?? [], 'qr_');
         } catch (RuntimeException $ex) {
             $errors[] = $ex->getMessage();
         }
@@ -168,7 +174,18 @@ require_once __DIR__ . '/includes/header.php';
                         <img src="<?= e(user_avatar($user['profile_image'])) ?>" alt="Current profile picture" class="avatar avatar-lg">
                         <small>Shown on your listings, in chats, and on your seller profile page.</small>
                     </div>
-                    <input type="file" id="profile_image" name="profile_image" accept=".jpg,.jpeg,.png,.webp">
+                    <?php
+                    // Square (1:1) crop with circular avatar-style preview, 400x400 output
+                    $crop_input_id    = 'profile_image';
+                    $crop_input_name  = 'profile_image';
+                    $crop_hidden_name = 'cropped_profile_image';
+                    $crop_ratio       = '1';
+                    $crop_circle      = 1;
+                    $crop_out_w       = 400;
+                    $crop_out_h       = 400;
+                    require __DIR__ . '/includes/crop_tool.php';
+                    ?>
+                    <small>After choosing a photo, the crop tool opens — the circle shows how your avatar will look.</small>
                 </div>
 
                 <div class="form-group">

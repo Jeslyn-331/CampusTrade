@@ -1695,6 +1695,17 @@ ul {
     border-radius: var(--radius);
 }
 
+/* Circular (avatar-style) mask for profile picture cropping:
+   the rounded crop box turns the dimming box-shadow into a round cutout. */
+.crop-root[data-circle="1"] .crop-box {
+    border-radius: 50%;
+}
+
+.crop-root[data-circle="1"] .crop-preview {
+    border-radius: 50%;
+    max-width: 160px;
+}
+
 /* ---------- Order status badges ---------- */
 .order-pending { background: var(--warning); }
 .order-completed { background: var(--success); }
