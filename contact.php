@@ -15,16 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ---- Server-side validation (authoritative) ----
     if ($name === '' || mb_strlen($name) > 100) {
-        $errors[] = 'Please enter your name (max 100 characters).';
+        $errors['name'] = 'Please enter your name (max 100 characters).';
     }
     if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 100) {
-        $errors[] = 'Please enter a valid email address.';
+        $errors['email'] = 'Please enter a valid email address.';
     }
     if ($subject === '' || mb_strlen($subject) > 200) {
-        $errors[] = 'Please enter a subject (max 200 characters).';
+        $errors['subject'] = 'Please enter a subject (max 200 characters).';
     }
     if (mb_strlen($message) < 10 || mb_strlen($message) > 5000) {
-        $errors[] = 'Message must be between 10 and 5000 characters.';
+        $errors['message'] = 'Message must be between 10 and 5000 characters.';
     }
 
     if (!$errors) {
@@ -52,35 +52,41 @@ require_once __DIR__ . '/includes/header.php';
         <section class="card">
             <h2>Send a Message</h2>
 
-            <?php if ($errors): ?>
-                <div class="alert alert-error">
-                    <ul>
-                        <?php foreach ($errors as $error): ?>
-                            <li><?= e($error) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
-
             <form method="post" action="contact.php" id="contactForm" novalidate>
                 <div class="form-group">
                     <label for="name">Name *</label>
-                    <input type="text" id="name" name="name" required maxlength="100" value="<?= e($name) ?>">
+                    <input type="text" id="name" name="name" required maxlength="100" value="<?= e($name) ?>"
+                           class="<?= isset($errors['name']) ? 'invalid' : '' ?>">
+                    <?php if (isset($errors['name'])): ?>
+                        <p class="field-error"><?= e($errors['name']) ?></p>
+                    <?php endif; ?>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email *</label>
-                    <input type="email" id="email" name="email" required maxlength="100" value="<?= e($email) ?>">
+                    <input type="email" id="email" name="email" required maxlength="100" value="<?= e($email) ?>"
+                           class="<?= isset($errors['email']) ? 'invalid' : '' ?>">
+                    <?php if (isset($errors['email'])): ?>
+                        <p class="field-error"><?= e($errors['email']) ?></p>
+                    <?php endif; ?>
                 </div>
 
                 <div class="form-group">
                     <label for="subject">Subject *</label>
-                    <input type="text" id="subject" name="subject" required maxlength="200" value="<?= e($subject) ?>">
+                    <input type="text" id="subject" name="subject" required maxlength="200" value="<?= e($subject) ?>"
+                           class="<?= isset($errors['subject']) ? 'invalid' : '' ?>">
+                    <?php if (isset($errors['subject'])): ?>
+                        <p class="field-error"><?= e($errors['subject']) ?></p>
+                    <?php endif; ?>
                 </div>
 
                 <div class="form-group">
                     <label for="message">Message *</label>
-                    <textarea id="message" name="message" rows="6" required minlength="10" maxlength="5000"><?= e($message) ?></textarea>
+                    <textarea id="message" name="message" rows="6" required minlength="10" maxlength="5000"
+                              class="<?= isset($errors['message']) ? 'invalid' : '' ?>"><?= e($message) ?></textarea>
+                    <?php if (isset($errors['message'])): ?>
+                        <p class="field-error"><?= e($errors['message']) ?></p>
+                    <?php endif; ?>
                 </div>
 
                 <button type="submit" class="btn btn-primary">Send Message</button>
