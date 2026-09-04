@@ -179,23 +179,23 @@ INSERT INTO users (username, email, password, phone, role) VALUES
 ('priya',    'priya@1utar.my',          '$2y$12$363/L51TUGHWAidBIcH.2e8NLK4.As3PwOAUrvj3GvdAJtJDXg0Ge', '017-2223333', 'user'),
 ('marcus',   'marcus@1utar.my',         '$2y$12$363/L51TUGHWAidBIcH.2e8NLK4.As3PwOAUrvj3GvdAJtJDXg0Ge', NULL,          'user');
 
-INSERT INTO listings (user_id, title, description, price, category, item_condition, status, created_at) VALUES
-(2, 'Calculus Early Transcendentals 8th Ed', 'James Stewart textbook used for UECM1024. Minor highlighting in chapters 1-3, otherwise clean. No missing pages.', 45.00, 'Textbooks', 'Good', 'Available', NOW() - INTERVAL 2 DAY),
-(2, 'Casio FX-570EX Scientific Calculator', 'Approved model for UTAR exams. Fully working, comes with cover. Selling because I graduated.', 35.00, 'Electronics', 'Like New', 'Available', NOW() - INTERVAL 3 DAY),
-(3, 'IKEA Study Desk (LINNMON)', '100x60cm white desk, sturdy legs. Perfect for hostel room. Self collect at Westlake condo.', 80.00, 'Furniture', 'Good', 'Available', NOW() - INTERVAL 4 DAY),
-(3, 'Fundamentals of Database Systems 7th Ed', 'Elmasri & Navathe. Required for UECS2084. Very good condition, no writing inside.', 50.00, 'Textbooks', 'Like New', 'Available', NOW() - INTERVAL 5 DAY),
-(4, 'Logitech M185 Wireless Mouse', 'Reliable wireless mouse with USB receiver. Battery included. Used for one semester only.', 25.00, 'Electronics', 'Like New', 'Available', NOW() - INTERVAL 6 DAY),
-(4, 'Lab Coat Size M', 'White lab coat required for chemistry/biology labs. Washed and ironed. Worn fewer than 10 times.', 20.00, 'Clothing', 'Good', 'Available', NOW() - INTERVAL 7 DAY),
-(5, 'Acer Aspire 5 Laptop (i5, 8GB, 512GB)', 'Reliable laptop for programming and assignments. Battery health ~85%. Comes with charger and sleeve. Reason for selling: upgraded.', 1250.00, 'Electronics', 'Good', 'Available', NOW() - INTERVAL 8 DAY),
-(5, 'Engineering Mathematics K.A. Stroud', 'Classic engineering maths reference. Cover slightly worn but all pages intact.', 30.00, 'Textbooks', 'Fair', 'Available', NOW() - INTERVAL 9 DAY),
-(2, 'Foldable Clothes Drying Rack', 'Stainless steel drying rack, folds flat. Great for hostel balcony.', 15.00, 'Others', 'Good', 'Available', NOW() - INTERVAL 10 DAY),
-(3, 'A4 Ring Files x6 (Assorted Colours)', 'Six thick A4 ring files, lightly used for one semester. Selling as a bundle.', 12.00, 'Stationery', 'Good', 'Available', NOW() - INTERVAL 11 DAY),
-(4, 'Mini Fridge 45L', 'Compact fridge suitable for hostel room. Cold and quiet. Self collect only.', 180.00, 'Electronics', 'Good', 'Reserved', NOW() - INTERVAL 12 DAY),
-(5, 'Office Chair with Wheels', 'Adjustable height office chair, comfortable for long study sessions. Small scratch on armrest.', 65.00, 'Furniture', 'Fair', 'Available', NOW() - INTERVAL 13 DAY),
-(2, 'Graphing Paper Pad + Drawing Set', 'Unused graphing pad plus compass/protractor set still in packaging.', 10.00, 'Stationery', 'New', 'Sold', NOW() - INTERVAL 14 DAY),
-(3, 'UTAR Hoodie Size L', 'Official UTAR merchandise hoodie, dark blue. Worn twice, like new.', 40.00, 'Clothing', 'Like New', 'Sold', NOW() - INTERVAL 15 DAY),
-(4, 'Principles of Marketing Kotler 17th Ed', 'Used for UKMM1043. Some notes in pencil, easy to erase.', 38.00, 'Textbooks', 'Good', 'Available', NOW() - INTERVAL 16 DAY),
-(5, 'Desk Lamp with USB Port', 'LED desk lamp with 3 brightness levels and a USB charging port at the base.', 22.00, 'Electronics', 'Like New', 'Sold', NOW() - INTERVAL 17 DAY);
+INSERT INTO listings (user_id, title, description, price, category, item_condition, status, image, created_at) VALUES
+(2, 'Calculus Early Transcendentals 8th Ed', 'James Stewart textbook used for UECM1024. Minor highlighting in chapters 1-3, otherwise clean. No missing pages.', 45.00, 'Textbooks', 'Good', 'Available', 'images/listings/calculus.webp', NOW() - INTERVAL 2 DAY),
+(2, 'Casio FX-570EX Scientific Calculator', 'Approved model for UTAR exams. Fully working, comes with cover. Selling because I graduated.', 35.00, 'Electronics', 'Like New', 'Available', 'images/listings/casio_calculator.webp', NOW() - INTERVAL 3 DAY),
+(3, 'IKEA Study Desk (LINNMON)', '100x60cm white desk, sturdy legs. Perfect for hostel room. Self collect at Westlake condo.', 80.00, 'Furniture', 'Good', 'Available', 'images/listings/ikea_desk.webp', NOW() - INTERVAL 4 DAY),
+(3, 'Fundamentals of Database Systems 7th Ed', 'Elmasri & Navathe. Required for UECS2084. Very good condition, no writing inside.', 50.00, 'Textbooks', 'Like New', 'Available', 'images/listings/database_system_book.webp', NOW() - INTERVAL 5 DAY),
+(4, 'Logitech M185 Wireless Mouse', 'Reliable wireless mouse with USB receiver. Battery included. Used for one semester only.', 25.00, 'Electronics', 'Like New', 'Available', 'images/listings/logitect_mouse.webp', NOW() - INTERVAL 6 DAY),
+(4, 'Lab Coat Size M', 'White lab coat required for chemistry/biology labs. Washed and ironed. Worn fewer than 10 times.', 20.00, 'Clothing', 'Good', 'Available', 'images/listings/labcoat.webp', NOW() - INTERVAL 7 DAY),
+(5, 'Acer Aspire 5 Laptop (i5, 8GB, 512GB)', 'Reliable laptop for programming and assignments. Battery health ~85%. Comes with charger and sleeve. Reason for selling: upgraded.', 1250.00, 'Electronics', 'Good', 'Available', 'images/listings/acer_laptop.webp', NOW() - INTERVAL 8 DAY),
+(5, 'Engineering Mathematics K.A. Stroud', 'Classic engineering maths reference. Cover slightly worn but all pages intact.', 30.00, 'Textbooks', 'Fair', 'Available', NULL, NOW() - INTERVAL 9 DAY),
+(2, 'Foldable Clothes Drying Rack', 'Stainless steel drying rack, folds flat. Great for hostel balcony.', 15.00, 'Others', 'Good', 'Available', NULL, NOW() - INTERVAL 10 DAY),
+(3, 'A4 Ring Files x6 (Assorted Colours)', 'Six thick A4 ring files, lightly used for one semester. Selling as a bundle.', 12.00, 'Stationery', 'Good', 'Available', NULL, NOW() - INTERVAL 11 DAY),
+(4, 'Mini Fridge 45L', 'Compact fridge suitable for hostel room. Cold and quiet. Self collect only.', 180.00, 'Electronics', 'Good', 'Reserved', NULL, NOW() - INTERVAL 12 DAY),
+(5, 'Office Chair with Wheels', 'Adjustable height office chair, comfortable for long study sessions. Small scratch on armrest.', 65.00, 'Furniture', 'Fair', 'Available', 'images/listings/ofiice_chair.webp', NOW() - INTERVAL 13 DAY),
+(2, 'Graphing Paper Pad + Drawing Set', 'Unused graphing pad plus compass/protractor set still in packaging.', 10.00, 'Stationery', 'New', 'Sold', NULL, NOW() - INTERVAL 14 DAY),
+(3, 'UTAR Hoodie Size L', 'Official UTAR merchandise hoodie, dark blue. Worn twice, like new.', 40.00, 'Clothing', 'Like New', 'Sold', NULL, NOW() - INTERVAL 15 DAY),
+(4, 'Principles of Marketing Kotler 17th Ed', 'Used for UKMM1043. Some notes in pencil, easy to erase.', 38.00, 'Textbooks', 'Good', 'Available', NULL, NOW() - INTERVAL 16 DAY),
+(5, 'Desk Lamp with USB Port', 'LED desk lamp with 3 brightness levels and a USB charging port at the base.', 22.00, 'Electronics', 'Like New', 'Sold', NULL, NOW() - INTERVAL 17 DAY);
 
 -- Two active discounts so the price-drop badge demos immediately
 UPDATE listings SET original_price = 1400.00, price = 1250.00, is_discounted = 1,
